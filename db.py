@@ -1,4 +1,5 @@
 import psycopg2
+import config
 
 
 def db_insert_user(tg_id, first_name, last_name, language_code, user_name):
@@ -8,9 +9,9 @@ def db_insert_user(tg_id, first_name, last_name, language_code, user_name):
              VALUES(%s, %s, %s, %s, %s);"""
 
     conn = psycopg2.connect(
-        database="d4507rcebm77pe", user='yvobcmcbgkgweo',
-        password='e88ed490b84655daef799b73606fadeb8bee8f41bf7f4b48654eb213c33fa71b',
-        host='ec2-54-155-110-181.eu-west-1.compute.amazonaws.com', port='5432', sslmode='require'
+        database=config.database, user=config.user,
+        password=config.password,
+        host=config.host, port=config.port, sslmode='require'
     )
     try:
         cur = conn.cursor()  # create a new cursor
@@ -35,9 +36,9 @@ def get_user_id(tg_id):
     sql = """SELECT id FROM users where tg_id = %s;"""
 
     conn = psycopg2.connect(
-        database="d4507rcebm77pe", user='yvobcmcbgkgweo',
-        password='e88ed490b84655daef799b73606fadeb8bee8f41bf7f4b48654eb213c33fa71b',
-        host='ec2-54-155-110-181.eu-west-1.compute.amazonaws.com', port='5432', sslmode='require'
+        database=config.database, user=config.user,
+        password=config.password,
+        host=config.host, port=config.port, sslmode='require'
     )
 
     try:
@@ -46,48 +47,47 @@ def get_user_id(tg_id):
         user_id = cur.fetchall()
         cur.close()  # close communication with the database
         conn.close()
+        if not user_id:
+            return user_id
+        else:
+            return user_id[0][0]
     except (Exception, psycopg2.DatabaseError) as error:
         print(error)
     finally:
         if conn is not None:
             conn.close()
-        return user_id[0][0]
 
 
 def get_new_words_from_dictionary(user_id):
-    sql = """SELECT d.word FROM dictionary d
+    sql = """SELECT d.id, d.word, d.translation FROM dictionary d
             LEFT JOIN (select word_id from user_dictionary where user_id = %s) ud
             ON d.id = ud.word_id
             WHERE ud.word_id IS NULL;"""
     conn = psycopg2.connect(
-        database="d4507rcebm77pe", user='yvobcmcbgkgweo',
-        password='e88ed490b84655daef799b73606fadeb8bee8f41bf7f4b48654eb213c33fa71b',
-        host='ec2-54-155-110-181.eu-west-1.compute.amazonaws.com', port='5432', sslmode='require'
+        database=config.database, user=config.user,
+        password=config.password,
+        host=config.host, port=config.port, sslmode='require'
     )
     try:
         cur = conn.cursor()
         cur.execute(sql, (user_id,))
-        words_from_db = cur.fetchall()
-        new_words = []
-        for x in words_from_db:
-            for y in x:
-                new_words.append(y)
+        ids_words = cur.fetchall()
         cur.close()  # close communication with the database
         conn.close()
+        return ids_words
     except (Exception, psycopg2.DatabaseError) as error:
         print(error)
     finally:
         if conn is not None:
             conn.close()
-    return new_words
 
 
 def get_words_from_dictionary():
     sql = """SELECT id, word FROM dictionary;"""
     conn = psycopg2.connect(
-        database="d4507rcebm77pe", user='yvobcmcbgkgweo',
-        password='e88ed490b84655daef799b73606fadeb8bee8f41bf7f4b48654eb213c33fa71b',
-        host='ec2-54-155-110-181.eu-west-1.compute.amazonaws.com', port='5432', sslmode='require'
+        database=config.database, user=config.user,
+        password=config.password,
+        host=config.host, port=config.port, sslmode='require'
     )
     try:
         cur = conn.cursor()
@@ -106,9 +106,9 @@ def get_words_from_dictionary():
 def get_user_dictionary(user_id):
     sql = """SELECT word_id FROM user_dictionary where user_id = %s;"""
     conn = psycopg2.connect(
-        database="d4507rcebm77pe", user='yvobcmcbgkgweo',
-        password='e88ed490b84655daef799b73606fadeb8bee8f41bf7f4b48654eb213c33fa71b',
-        host='ec2-54-155-110-181.eu-west-1.compute.amazonaws.com', port='5432', sslmode='require'
+        database=config.database, user=config.user,
+        password=config.password,
+        host=config.host, port=config.port, sslmode='require'
     )
     try:
         cur = conn.cursor()
@@ -129,7 +129,7 @@ def get_user_dictionary(user_id):
 
 
 def get_repetition(user_id):
-    sql = """SELECT d.word, d.translation, d.id from (
+    sql = """SELECT d.id, d.word, d.translation  from (
                 SELECT *, now() - updated_at as timediff from user_dictionary
             ) as ud 
             LEFT JOIN dictionary as d 
@@ -144,11 +144,11 @@ def get_repetition(user_id):
                 repetition = 6 and timediff> cast('7 day' as interval) or
                 repetition = 7 and timediff> cast('14 day' as interval) or
                 repetition = 8 and timediff> cast('1 month' as interval)
-            )and status != 'already_know' and user_id = 1;"""
+            )and status != 'already_know' and user_id = %s;"""
     conn = psycopg2.connect(
-        database="d4507rcebm77pe", user='yvobcmcbgkgweo',
-        password='e88ed490b84655daef799b73606fadeb8bee8f41bf7f4b48654eb213c33fa71b',
-        host='ec2-54-155-110-181.eu-west-1.compute.amazonaws.com', port='5432', sslmode='require'
+        database=config.database, user=config.user,
+        password=config.password,
+        host=config.host, port=config.port, sslmode='require'
     )
     try:
         cur = conn.cursor()
@@ -156,20 +156,20 @@ def get_repetition(user_id):
         repetition = cur.fetchall()
         cur.close()  # close communication with the database
         conn.close()
+        return repetition
     except (Exception, psycopg2.DatabaseError) as error:
         print(error)
     finally:
         if conn is not None:
             conn.close()
-    return repetition
 
 
 def get_tr_word_by_id(id):
     sql = """SELECT translation FROM dictionary where id = %s;"""
     conn = psycopg2.connect(
-        database="d4507rcebm77pe", user='yvobcmcbgkgweo',
-        password='e88ed490b84655daef799b73606fadeb8bee8f41bf7f4b48654eb213c33fa71b',
-        host='ec2-54-155-110-181.eu-west-1.compute.amazonaws.com', port='5432', sslmode='require'
+        database=config.database, user=config.user,
+        password=config.password,
+        host=config.host, port=config.port, sslmode='require'
     )
     try:
         cur = conn.cursor()
@@ -191,9 +191,9 @@ def insert_word(user_id, word_id, status):
     sql_insert = """INSERT INTO user_dictionary(user_id, word_id, status)
              VALUES(%s, %s, %s);"""
     conn = psycopg2.connect(
-        database="d4507rcebm77pe", user='yvobcmcbgkgweo',
-        password='e88ed490b84655daef799b73606fadeb8bee8f41bf7f4b48654eb213c33fa71b',
-        host='ec2-54-155-110-181.eu-west-1.compute.amazonaws.com', port='5432', sslmode='require'
+        database=config.database, user=config.user,
+        password=config.password,
+        host=config.host, port=config.port, sslmode='require'
     )
     try:
         cur = conn.cursor()  # create a new cursor
@@ -220,9 +220,9 @@ def count_repetition(word_id, user_id, count):
                     SET repetition = %s
                     WHERE user_id = %s and word_id = %s;"""
     conn = psycopg2.connect(
-        database="d4507rcebm77pe", user='yvobcmcbgkgweo',
-        password='e88ed490b84655daef799b73606fadeb8bee8f41bf7f4b48654eb213c33fa71b',
-        host='ec2-54-155-110-181.eu-west-1.compute.amazonaws.com', port='5432', sslmode='require'
+        database=config.database, user=config.user,
+        password=config.password,
+        host=config.host, port=config.port, sslmode='require'
     )
     try:
         cur = conn.cursor()

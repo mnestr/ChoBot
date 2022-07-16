@@ -3,8 +3,9 @@ import random
 from telebot import types
 from telebot import custom_filters
 import db
+import config
 
-bot = telebot.TeleBot('5532590680:AAH7jrLQjuDy87cFcin3UDM7uaD8DubYtEE', parse_mode=None)
+bot = telebot.TeleBot(config.token, parse_mode=None)
 
 # repetitions = {1: 15 минут, 2: 6 часов, 3: 1 день, 4: 2 дня, 4: 3 суток, 5: 5 дней, 6: 7 дней, 7: 14 дней, 8: 1 месяц}
 
@@ -18,6 +19,7 @@ class Repetition:
         self.word_lrn = None
         self.word_tr = None
         self.word_id = None
+        self.repetition = None
 
 
 user_repetition = Repetition()
@@ -54,6 +56,12 @@ def pickup_answers_on_buttons():
 
     # for name in available_food_names: пример как можно попробовать сделать
     #     keyboard.add(name)
+    #
+    # #This will generate buttons for us in more elegant way
+    # def generate_buttons(bts_names, markup):
+    #     for button in bts_names:
+    #         markup.add(types.KeyboardButton(button))
+    #     return markup
 
 
 def save_word(user_id, word_id, status):
@@ -63,111 +71,139 @@ def save_word(user_id, word_id, status):
 def pickup_word(repetition):
     word_ids = []
     for x in repetition:
-        word_ids.append(x[2])
+        word_ids.append(x[0])
     word_id = random.choice(word_ids)
     user_repetition.word_id = word_id
     for x in repetition:
-        if x[2] == word_id:
-            user_repetition.word_lrn = x[0]
-            user_repetition.word_tr = x[1]
+        index = repetition.index(x)
+        if x[0] == word_id:
+            user_repetition.word_lrn = x[1]
+            user_repetition.word_tr = x[2]
+            user_repetition.repetition.pop(index)
             break
     return user_repetition.word_tr
 
 
 @bot.message_handler(commands=['start'])
 def start(message):
-    tg_id = int(message.from_user.id)
+    tg_id = message.from_user.id
     user_id = db.get_user_id(tg_id)
-    if user_id is None:
+    if not user_id:
         create_user(message)
+        user_id = db.get_user_id(tg_id)
+        user_repetition.user_id = user_id
         markup = types.ReplyKeyboardMarkup(resize_keyboard=True, row_width=1)
-        answer_1 = types.KeyboardButton('учить новые слова')
+        answer_1 = types.KeyboardButton('Sure!')
         markup.add(answer_1)
-        bot.send_message(message.from_user.id, 'У тебя нет слов для повторения. Посмотрим новые слова?', reply_markup=markup)
+        bot.send_message(message.from_user.id, "Hi! I'm Steve!")
+        photo = open('Pictures/1.jpg', 'rb')
+        bot.send_photo(message.from_user.id, photo)
+        bot.send_message(message.from_user.id, "Wanna learn some words?", reply_markup=markup)
+        bot.register_next_step_handler(message, want_to_start, tg_id)
     else:
         repetition = db.get_repetition(user_id)
-        if repetition is None:
+        if not repetition:
             markup = types.ReplyKeyboardMarkup(resize_keyboard=True, row_width=1)
-            answer_1 = types.KeyboardButton('учить новые слова')
+            answer_1 = types.KeyboardButton('Learn new words')
             markup.add(answer_1)
-            bot.send_message(message.from_user.id, 'У тебя нет слов для повторения. Посмотрим новые слова?', reply_markup=markup)
+            bot.send_message(message.from_user.id, "You have nothing to repeat. Let's see some new words?", reply_markup=markup)
         else:
             markup = types.ReplyKeyboardMarkup(resize_keyboard=True, row_width=1)
-            answer_1 = types.KeyboardButton('Повторить')
+            answer_1 = types.KeyboardButton('Repeat')
             markup.add(answer_1)
-            bot.send_message(message.from_user.id, 'Повторим слова?', reply_markup=markup)
+            bot.send_message(message.from_user.id, "You have 3 words to repeat. Let's repeat?", reply_markup=markup)
 
 
-@bot.message_handler(text=['учить новые слова', 'Повторить'])
-def show_word(message):
-    tg_id = int(message.from_user.id)
-    user_id = db.get_user_id(tg_id)
-    user_repetition.user_id = user_id
-    repetition = db.get_repetition(user_id)
-    if len(repetition) > 0:
-        word_tr = pickup_word(repetition)
-        markup = pickup_answers_on_buttons()
-        bot.send_message(message.chat.id, word_tr, reply_markup=markup)
-        bot.register_next_step_handler(message, check_answer)
-    else:
-        new_words = db.get_new_words_from_dictionary(user_id)
-        word = random.choice(new_words)
-        markup = types.ReplyKeyboardMarkup(resize_keyboard=True, row_width=2)
-        answer_1 = types.KeyboardButton('Уже знаю')
-        answer_2 = types.KeyboardButton('Учить')
-        markup.add(answer_1, answer_2)
-        bot.send_message(message.chat.id, word, reply_markup=markup)
-        bot.register_next_step_handler(message, sort_word)
-
-
-def sort_word(message):
+def want_to_start(message, tg_id):
     answer = message.text
-    if answer == 'Учить' and user_repetition.sorted_words_count > 2:
+    if answer in ['Sure!', 'Learn new words'] and tg_id == message.from_user.id:
+        bot.send_message(message.chat.id, "Ok. Do you know this one?")
+        show_word(message)
+
+
+def show_word(message):
+    tg_id = message.from_user.id
+    new_words = db.get_new_words_from_dictionary(user_repetition.user_id)
+    user_repetition.repetition = new_words
+    pickup_word(new_words)
+    word = user_repetition.word_lrn
+    markup = types.ReplyKeyboardMarkup(resize_keyboard=True, row_width=2)
+    answer_1 = types.KeyboardButton('Already know')
+    answer_2 = types.KeyboardButton('Learn')
+    markup.add(answer_1, answer_2)
+    bot.send_message(message.chat.id, word, reply_markup=markup)
+    bot.register_next_step_handler(message, sort_word, tg_id)
+
+
+def sort_word(message, tg_id):
+    answer = message.text
+    if answer == 'Learn' and tg_id == message.from_user.id and user_repetition.sorted_words_count > 1:
         save_word(user_repetition.user_id, user_repetition.word_id, 'repetition')
         user_repetition.sorted_words_count = 0
         markup = types.ReplyKeyboardMarkup(resize_keyboard=True, row_width=2)
-        answer_1 = types.KeyboardButton('Да')
-        answer_2 = types.KeyboardButton('Потом')
+        answer_1 = types.KeyboardButton('Sure!')
+        answer_2 = types.KeyboardButton('Later')
         markup.add(answer_1, answer_2)
-        bot.send_message(message.from_user.id, 'Будем учить! Слова кончились. Начнем учить?', reply_markup=markup)
-        bot.register_next_step_handler(message, want_to_learn)
-    elif answer == 'Уже знаю':
+        bot.send_message(message.from_user.id, 'You have 3 new words to learn. Wanna start?', reply_markup=markup)
+        bot.register_next_step_handler(message, want_to_learn, tg_id)
+    elif answer == 'Already know' and tg_id == message.from_user.id:
         save_word(user_repetition.user_id, user_repetition.word_id, 'already_know')
-        bot.send_message(message.from_user.id, 'Красава! Вот еще слово:')
+        bot.send_message(message.from_user.id, 'Lucky you! Here is another word:')
         show_word(message)
-    elif answer == 'Учить':
+    elif answer == 'Learn' and tg_id == message.from_user.id:
         save_word(user_repetition.user_id, user_repetition.word_id, 'repetition')
         user_repetition.sorted_words_count += 1
-        bot.send_message(message.from_user.id, 'Будем учить! Вот еще слово:')
+        bot.send_message(message.from_user.id, "Ok, let's learn then! Here is another word:")
         show_word(message)
 
 
-def check_answer(message):
+def want_to_learn(message, tg_id):
+    answer = message.text
+    if answer == 'Sure!' and tg_id == message.from_user.id:
+        before_repeat_word(message)
+    elif answer == 'Later' and tg_id == message.from_user.id:
+        bot.send_message(message.from_user.id, 'As you wish=/')
+
+
+@bot.message_handler(text=['Repeat'])
+def before_repeat_word(message):
+    tg_id = message.from_user.id
+    user_id = db.get_user_id(tg_id)
+    user_repetition.user_id = user_id
+    repetition = db.get_repetition(user_id)
+    user_repetition.repetition = repetition
+    repeat_word(message)
+
+
+def repeat_word(message):
+    if len(user_repetition.repetition) > 0 and user_repetition.sorted_words_count == 0:
+        tg_id = message.from_user.id
+        word_tr = pickup_word(user_repetition.repetition)
+        markup = pickup_answers_on_buttons()
+        bot.send_message(message.chat.id, word_tr, reply_markup=markup)
+        bot.register_next_step_handler(message, check_answer, tg_id)
+    elif len(user_repetition.repetition) == 0:
+        bot.send_message(message.chat.id, "You've repeated all words. Try to memorize them. Come back later to repeat")
+
+
+def check_answer(message, tg_id):
     user_answer = message.text
-    if user_answer == user_repetition.word_lrn:
+    if user_answer == user_repetition.word_lrn and tg_id == message.from_user.id:
         if user_repetition.level_down_once == 1:
             user_repetition.level_down_once = 0
-            bot.send_message(message.from_user.id, 'Правильно!')
-            show_word(message)
+            bot.send_message(message.from_user.id, 'Correct!')
+            repeat_word(message)
         else:
             db.count_repetition(user_repetition.word_id, user_repetition.user_id, "+1")
             user_repetition.level_down_once = 0
-            bot.send_message(message.from_user.id, 'Правильно!')
-            show_word(message)
-    else:
+            bot.send_message(message.from_user.id, 'Correct!')
+            repeat_word(message)
+    elif tg_id == message.from_user.id:
         if user_repetition.level_down_once == 0:
             db.count_repetition(user_repetition.word_id, user_repetition.user_id, "-1")
             user_repetition.level_down_once = 1
-        bot.send_message(message.from_user.id, 'Попробуй еще')
-        bot.register_next_step_handler(message, check_answer)
-
-
-def want_to_learn(message):
-    answer = message.text
-    if answer == 'Да':
-        show_word(message)
-    elif answer == 'Потом':
-        bot.send_message(message.from_user.id, 'Ну как хочешь=/')
+        bot.send_message(message.from_user.id, 'Try again')
+        bot.register_next_step_handler(message, check_answer, tg_id)
 
 
 bot.add_custom_filter(custom_filters.TextMatchFilter())
