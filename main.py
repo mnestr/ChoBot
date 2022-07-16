@@ -85,6 +85,7 @@ def pickup_word(repetition):
 
 
 @bot.message_handler(commands=['start'])
+@bot.message_handler(text=['Hey!'])
 def start(message):
     tg_id = message.from_user.id
     user_id = db.get_user_id(tg_id)
@@ -119,6 +120,8 @@ def want_to_start(message, tg_id):
     if answer in ['Sure!', 'Learn new words'] and tg_id == message.from_user.id:
         bot.send_message(message.chat.id, "Ok. Do you know this one?")
         show_word(message)
+    elif answer == 'Anything to repeat?' and tg_id == message.from_user.id:
+        before_repeat_word(message)
 
 
 def show_word(message):
@@ -162,7 +165,10 @@ def want_to_learn(message, tg_id):
     if answer == 'Sure!' and tg_id == message.from_user.id:
         before_repeat_word(message)
     elif answer == 'Later' and tg_id == message.from_user.id:
-        bot.send_message(message.from_user.id, 'As you wish=/')
+        markup = types.ReplyKeyboardMarkup(resize_keyboard=True, row_width=1)
+        answer_1 = types.KeyboardButton('Hey!')
+        markup.add(answer_1)
+        bot.send_message(message.from_user.id, 'As you wish=/', reply_markup=markup)
 
 
 @bot.message_handler(text=['Repeat'])
@@ -183,7 +189,13 @@ def repeat_word(message):
         bot.send_message(message.chat.id, word_tr, reply_markup=markup)
         bot.register_next_step_handler(message, check_answer, tg_id)
     elif len(user_repetition.repetition) == 0:
-        bot.send_message(message.chat.id, "You've repeated all words. Try to memorize them. Come back later to repeat")
+        markup = types.ReplyKeyboardMarkup(resize_keyboard=True, row_width=2)
+        answer_1 = types.KeyboardButton('Anything to repeat?')
+        answer_2 = types.KeyboardButton('Learn new words')
+        markup.add(answer_1, answer_2)
+        bot.send_message(message.from_user.id, "You've repeated all words. Try to memorize them and Come back later to repeat", reply_markup=markup)
+        tg_id = message.from_user.id
+        bot.register_next_step_handler(message, want_to_start, tg_id)
 
 
 def check_answer(message, tg_id):
