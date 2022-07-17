@@ -4,7 +4,6 @@ from telebot import types
 from telebot import custom_filters
 import db
 import config
-from google.cloud import translate_v2
 
 bot = telebot.TeleBot(config.token, parse_mode=None)
 
