@@ -108,6 +108,7 @@ def start(message):
             answer_1 = types.KeyboardButton('Learn new words')
             markup.add(answer_1)
             bot.send_message(message.from_user.id, "You have nothing to repeat. Let's see some new words?", reply_markup=markup)
+            bot.register_next_step_handler(message, want_to_start, tg_id)
         else:
             markup = types.ReplyKeyboardMarkup(resize_keyboard=True, row_width=1)
             answer_1 = types.KeyboardButton('Repeat')
@@ -133,7 +134,8 @@ def show_word(message):
     markup = types.ReplyKeyboardMarkup(resize_keyboard=True, row_width=2)
     answer_1 = types.KeyboardButton('Already know')
     answer_2 = types.KeyboardButton('Learn')
-    markup.add(answer_1, answer_2)
+    answer_3 = types.KeyboardButton('Show a hint')
+    markup.add(answer_1, answer_2, answer_3)
     bot.send_message(message.chat.id, word, reply_markup=markup)
     bot.register_next_step_handler(message, sort_word, tg_id)
 
@@ -158,6 +160,13 @@ def sort_word(message, tg_id):
         user_repetition.sorted_words_count += 1
         bot.send_message(message.from_user.id, "Ok, let's learn then! Here is another word:")
         show_word(message)
+    elif answer == 'Show a hint' and tg_id == message.from_user.id:
+        markup = types.ReplyKeyboardMarkup(resize_keyboard=True, row_width=2)
+        answer_1 = types.KeyboardButton('Already know')
+        answer_2 = types.KeyboardButton('Learn')
+        markup.add(answer_1, answer_2)
+        bot.send_message(message.chat.id, user_repetition.word_tr, reply_markup=markup)
+        bot.register_next_step_handler(message, sort_word, tg_id)
 
 
 def want_to_learn(message, tg_id):
