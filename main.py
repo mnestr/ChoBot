@@ -69,6 +69,7 @@ def format_string(full_translation):
     examp_list = full_translation[0][4].split("\n")
     examp_list2 = []
     for i in examp_list:
+        if not i: continue
         examp_list2.append("  \* " + i)
     examp = "\n".join(examp_list2)
     return examp
@@ -156,12 +157,15 @@ def sort_word(message, tg_id, sorted_words_count, id_lrn_tr=None):
         show_word(message, sorted_words_count)
     elif answer == 'Show translation' and tg_id == message.from_user.id:
         markup = types.ReplyKeyboardMarkup(resize_keyboard=True, row_width=2)
+        markup2 = types.InlineKeyboardMarkup()
         answer_1 = types.KeyboardButton('Already know')
         answer_2 = types.KeyboardButton('Learn')
         markup.add(answer_1, answer_2)
         full_translation = db.get_tr_by_id(id_lrn_tr[0])
+        markup2.add(types.InlineKeyboardButton("More", url='https://dictionary.cambridge.org/dictionary/english-russian/{0}'.format(full_translation[0][0])))
         examp = format_string(full_translation)
-        bot.send_message(message.chat.id, "  *{0}* (_{1}_) - {2} *//* {3}\n\n_Example:_\n{4}".format(full_translation[0][0], full_translation[0][2], full_translation[0][1], full_translation[0][3], examp), reply_markup=markup,  parse_mode='markdown')
+        bot.send_message(message.chat.id, "  *{0}* (_{1}_) - {2} *//* {3}\n\n_Example:_\n{4}".format(full_translation[0][0], full_translation[0][2], full_translation[0][1], full_translation[0][3], examp), reply_markup=markup2,  parse_mode='markdown')
+        bot.send_message(message.chat.id, "So, do you know it?", reply_markup=markup)
         bot.register_next_step_handler(message, sort_word, tg_id, sorted_words_count, id_lrn_tr)
 
 
@@ -221,7 +225,7 @@ def check_answer(message, tg_id, id_lrn_tr=None, level_down_once=0):
 
 
 # @bot.message_handler(commands=['add_word'])
-# @bot.message_handler(text=['добавить слово', 'Добавить слово', 'добавить слово',])
+# @bot.message_handler(text=['добавить слово', 'Добавить слово', 'add word',])
 # def dialog_add_word(message):
 #     tg_id = message.from_user.id
 #     bot.send_message(message.from_user.id, 'Write your word')
