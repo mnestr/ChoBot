@@ -164,8 +164,8 @@ def get_repetition(user_id):
             conn.close()
 
 
-def get_tr_word_by_id(id):
-    sql = """SELECT translation FROM dictionary where id = %s;"""
+def get_tr_by_id(id):
+    sql = """SELECT word, translation, part_of_speach, meaning, example FROM dictionary where id = %s;"""
     conn = psycopg2.connect(
         database=config.database, user=config.user,
         password=config.password,
@@ -182,7 +182,7 @@ def get_tr_word_by_id(id):
     finally:
         if conn is not None:
             conn.close()
-    return tr_word[0][0]
+    return tr_word
 
 
 def insert_word(user_id, word_id, status):
