@@ -290,7 +290,7 @@ def check_answer(message, tg_id, id_lrn_tr=None, level_down_once=0):
 
 
 @bot.message_handler(commands=['add_word'])
-@bot.message_handler(text=['добавить слово', 'Добавить слово', 'add word', 'Add my word'])
+@bot.message_handler(text=['добавить слово', 'add word', 'Add my word'])
 def start_dialog_add_word(message):
     tg_id = message.from_user.id
     bot.send_message(message.from_user.id, 'Write your word:')
