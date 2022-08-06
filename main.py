@@ -263,8 +263,8 @@ def repeat_word(message, repetition):
         markup = types.ReplyKeyboardMarkup(resize_keyboard=True, row_width=2)
         answer_1 = types.KeyboardButton('Anything to repeat?')
         answer_2 = types.KeyboardButton('Learn new words')
-        answer_2 = types.KeyboardButton('Add my word')
-        markup.add(answer_1, answer_2)
+        answer_3 = types.KeyboardButton('Add my word')
+        markup.add(answer_1, answer_2, answer_2)
         bot.send_message(message.from_user.id, "You've repeated all words. Try to memorize them and Come back later to repeat", disable_notification=True, reply_markup=markup)
         tg_id = message.from_user.id
         bot.register_next_step_handler(message, want_to_start, tg_id)
