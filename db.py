@@ -58,6 +58,29 @@ def get_user_id(tg_id):
             conn.close()
 
 
+def insert_word(word, translation, prt_of_speach, meaning, examp, user_id):
+    sql_insert = """INSERT INTO dictionary(word, translation, part_of_speach, meaning, example, added_by_user_id)
+             VALUES(%s, %s, %s, %s, %s, %s) RETURNING id;"""
+    conn = psycopg2.connect(
+        database="d4507rcebm77pe", user='yvobcmcbgkgweo',
+        password='e88ed490b84655daef799b73606fadeb8bee8f41bf7f4b48654eb213c33fa71b',
+        host='ec2-54-155-110-181.eu-west-1.compute.amazonaws.com', port='5432', sslmode='require'
+    )
+    try:
+        cur = conn.cursor()  # create a new cursor
+        cur.execute(sql_insert, (word, translation, prt_of_speach, meaning, examp, user_id))
+        conn.commit()  # commit the changes to the database
+        word_id = cur.fetchone()
+        cur.close()  # close communication with the database
+        conn.close()
+        return word_id[0]
+    except (Exception, psycopg2.DatabaseError) as error:
+        print(error)
+    finally:
+        if conn is not None:
+            conn.close()
+
+
 def get_new_words_from_dictionary(user_id):
     sql = """SELECT d.id, d.word, d.translation FROM dictionary d
             LEFT JOIN (select word_id from user_dictionary where user_id = %s) ud
@@ -164,7 +187,7 @@ def get_repetition(user_id):
             conn.close()
 
 
-def get_tr_by_id(id):
+def get_descr_from_dict(id):
     sql = """SELECT word, translation, part_of_speach, meaning, example FROM dictionary where id = %s;"""
     conn = psycopg2.connect(
         database=config.database, user=config.user,
@@ -185,11 +208,11 @@ def get_tr_by_id(id):
     return tr_word
 
 
-def insert_word(user_id, word_id, status):
+def insert_word_user_dict(user_id, word_id, status, user_word_description):
     sql_exists = """SELECT word_id FROM user_dictionary WHERE word_id=%s LIMIT 1;"""
 
-    sql_insert = """INSERT INTO user_dictionary(user_id, word_id, status)
-             VALUES(%s, %s, %s);"""
+    sql_insert = """INSERT INTO user_dictionary(user_id, word_id, status, user_word_description)
+             VALUES(%s, %s, %s, %s);"""
     conn = psycopg2.connect(
         database=config.database, user=config.user,
         password=config.password,
@@ -201,12 +224,33 @@ def insert_word(user_id, word_id, status):
         check_word_id = cur.fetchall()
         if not check_word_id:
             cur = conn.cursor()
-            cur.execute(sql_insert, (user_id, word_id, status))  # execute the INSERT statement
+            cur.execute(sql_insert, (user_id, word_id, status, user_word_description))  # execute the INSERT statement
             conn.commit()  # commit the changes to the database
             cur.close()  # close communication with the database
             conn.close()
         else:
             conn.close()
+    except (Exception, psycopg2.DatabaseError) as error:
+        print(error)
+    finally:
+        if conn is not None:
+            conn.close()
+
+
+def get_user_descr(word_id):
+    sql = """SELECT user_word_description FROM user_dictionary where word_id = %s;"""
+    conn = psycopg2.connect(
+        database=config.database, user=config.user,
+        password=config.password,
+        host=config.host, port=config.port, sslmode='require'
+    )
+    try:
+        cur = conn.cursor()
+        cur.execute(sql,(word_id,))
+        user_word_description = cur.fetchall()
+        cur.close()  # close communication with the database
+        conn.close()
+        return user_word_description
     except (Exception, psycopg2.DatabaseError) as error:
         print(error)
     finally:
@@ -251,3 +295,26 @@ def count_repetition(word_id, user_id, count):
         if conn is not None:
             conn.close()
 
+
+def find_word_in_db(word):
+    sql = """SELECT id FROM dictionary where word = %s;"""
+    conn = psycopg2.connect(
+        database=config.database, user=config.user,
+        password=config.password,
+        host=config.host, port=config.port, sslmode='require'
+    )
+    try:
+        cur = conn.cursor()
+        cur.execute(sql,(word,))
+        word_id = cur.fetchall()
+        cur.close()  # close communication with the database
+        conn.close()
+        if word_id:
+            return word_id[0][0]
+        elif not word_id:
+            return None
+    except (Exception, psycopg2.DatabaseError) as error:
+        print(error)
+    finally:
+        if conn is not None:
+            conn.close()

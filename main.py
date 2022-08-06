@@ -4,10 +4,46 @@ from telebot import types
 from telebot import custom_filters
 import db
 import config
+from bs4 import BeautifulSoup
+import requests
 
 bot = telebot.TeleBot(config.token, parse_mode=None)
 
 # repetitions = {1: 15 минут, 2: 6 часов, 3: 1 день, 4: 2 дня, 4: 3 суток, 5: 5 дней, 6: 7 дней, 7: 14 дней, 8: 1 месяц}
+
+
+def scrap_word(word):
+    url = "https://dictionary.cambridge.org/us/dictionary/english-russian/{0}".format(word)
+    url = url.rstrip()
+    headers = requests.utils.default_headers()
+
+    headers.update({'User-Agent': 'My User Agent 1.0',})
+
+    response = requests.get(url, headers=headers)
+    soup = BeautifulSoup(response.content, "html.parser")
+    block = soup.find("div", class_="def-block ddef_block")
+
+    try:
+        ps_tgs = soup.find("span", class_="pos dpos")
+        prt_of_speach = ps_tgs.get_text(strip=True)
+
+        tr_tgs = block.find("span", class_="trans dtrans dtrans-se")
+        translation = tr_tgs.text.strip()
+
+        mn_tgs = block.find_all("div", class_="def ddef_d db")
+        meaning_lst = []
+        for each in mn_tgs:
+            meaning_lst.append(each.text.strip())
+        meaning = " ".join(meaning_lst)
+
+        examp_tgs = block.find_all("div", class_="examp dexamp")
+        examp_lst = []
+        for each in examp_tgs:
+            examp_lst.append(each.text.strip())
+        examp = "\n".join(examp_lst)
+    except:
+        return None
+    return word, translation, prt_of_speach, meaning, examp
 
 
 def create_user(message):
@@ -48,8 +84,8 @@ def pickup_answers_on_buttons(id_lrn_tr):
     #     return markup
 
 
-def save_word(user_id, word_id, status):
-    db.insert_word(user_id, word_id, status)
+def save_word(user_id, word_id, status, user_word_description=None):
+    db.insert_word_user_dict(user_id, word_id, status, user_word_description)
 
 
 def pickup_word(repetition):
@@ -73,6 +109,38 @@ def format_string(full_translation):
         examp_list2.append("  \* " + i)
     examp = "\n".join(examp_list2)
     return examp
+
+
+def show_word_decription(message, id=None, scraped_desc=None):
+    if id:
+        full_description = db.get_descr_from_dict(id)
+    elif scraped_desc:
+        full_description = scraped_desc
+    user_word_description = db.get_user_descr(id)
+    markup = types.InlineKeyboardMarkup()
+    markup.add(types.InlineKeyboardButton("More",
+                                           url='https://dictionary.cambridge.org/dictionary/english-russian/{0}'.format(
+                                               full_description[0][0]))) #надо проверять доступно ли слово по этому адресу и скрывать кнопку если нет
+    examp = format_string(full_description)
+    if user_word_description:
+        bot.send_message(message.chat.id,
+                         "  *{0}* (_{1}_) - {2} *//* {3}\n\n_Additional meaning:_{5}\n\n_Example:_\n{4}".format(
+                                                                                    full_description[0][0],
+                                                                                    full_description[0][2],
+                                                                                    full_description[0][1],
+                                                                                    full_description[0][3],
+                                                                                    examp,
+                                                                                    user_word_description),
+                         reply_markup=markup, parse_mode='markdown')
+    else:
+        bot.send_message(message.chat.id,
+                         "  *{0}* (_{1}_) - {2} *//* {3}\n\n_Example:_\n{4}".format(full_description[0][0],
+                                                                                    full_description[0][2],
+                                                                                    full_description[0][1],
+                                                                                    full_description[0][3],
+                                                                                    examp),
+                         reply_markup=markup, parse_mode='markdown')
+
 
 
 @bot.message_handler(commands=['start'])
@@ -157,14 +225,10 @@ def sort_word(message, tg_id, sorted_words_count, id_lrn_tr=None):
         show_word(message, sorted_words_count)
     elif answer == 'Show translation' and tg_id == message.from_user.id:
         markup = types.ReplyKeyboardMarkup(resize_keyboard=True, row_width=2)
-        markup2 = types.InlineKeyboardMarkup()
         answer_1 = types.KeyboardButton('Already know')
         answer_2 = types.KeyboardButton('Learn')
         markup.add(answer_1, answer_2)
-        full_translation = db.get_tr_by_id(id_lrn_tr[0])
-        markup2.add(types.InlineKeyboardButton("More", url='https://dictionary.cambridge.org/dictionary/english-russian/{0}'.format(full_translation[0][0])))
-        examp = format_string(full_translation)
-        bot.send_message(message.chat.id, "  *{0}* (_{1}_) - {2} *//* {3}\n\n_Example:_\n{4}".format(full_translation[0][0], full_translation[0][2], full_translation[0][1], full_translation[0][3], examp), reply_markup=markup2,  parse_mode='markdown')
+        show_word_decription(message, id=id_lrn_tr[0])
         bot.send_message(message.chat.id, "So, do you know it?", reply_markup=markup)
         bot.register_next_step_handler(message, sort_word, tg_id, sorted_words_count, id_lrn_tr)
 
@@ -224,16 +288,56 @@ def check_answer(message, tg_id, id_lrn_tr=None, level_down_once=0):
         bot.register_next_step_handler(message, check_answer, tg_id, id_lrn_tr,  level_down_once=level_down_once)
 
 
-# @bot.message_handler(commands=['add_word'])
-# @bot.message_handler(text=['добавить слово', 'Добавить слово', 'add word',])
-# def dialog_add_word(message):
-#     tg_id = message.from_user.id
-#     bot.send_message(message.from_user.id, 'Write your word')
-#     bot.register_next_step_handler(message, check_answer, tg_id)
-#
-# def check_word(message):
-#     check_word()
-#     If check_word() True:
+@bot.message_handler(commands=['add_word'])
+@bot.message_handler(text=['добавить слово', 'Добавить слово', 'add word'])
+def start_dialog_add_word(message):
+    tg_id = message.from_user.id
+    bot.send_message(message.from_user.id, 'Write your word:')
+    bot.register_next_step_handler(message, recieve_word, tg_id)
+
+
+def recieve_word(message, tg_id):
+    if tg_id == message.from_user.id:
+        user_word = message.text
+        scraped_desc = None
+        # check_spelling()
+        # check_english_word()
+        word_id = db.find_word_in_db(user_word)
+        user_id = db.get_user_id(tg_id)
+        if not word_id:
+            scraped_desc = scrap_word(user_word)
+            if not scraped_desc:
+                word_id = db.insert_word(user_word, None, None, None, None, user_id)
+                bot.send_message(message.from_user.id, "Can't find any description. Please add your own:")
+                bot.register_next_step_handler(message, add_user_word_desc, tg_id, word_id)
+            elif scraped_desc:
+                db.insert_word(scrap_word[0], scrap_word[1], scrap_word[2], scrap_word[3], scrap_word[4], user_id)
+        show_word_decription(message, id=word_id, scraped_desc=scraped_desc)
+        markup = types.ReplyKeyboardMarkup(resize_keyboard=True, row_width=2)
+        answer_1 = types.KeyboardButton('Yep')
+        answer_2 = types.KeyboardButton('Add another description')
+        markup.add(answer_1, answer_2)
+        bot.send_message(message.from_user.id, "I've found it! Do you want to add it to your learning list?", reply_markup=markup)
+        bot.register_next_step_handler(message, user_answer_dialog_add_word, tg_id, word_id)
+
+
+def user_answer_dialog_add_word(message, tg_id, word_id):
+    if tg_id == message.from_user.id:
+        answer = message.text
+        if answer == 'Yep':
+            user_id = db.get_user_id(tg_id)
+            save_word(user_id, word_id, 'repetition')
+            bot.send_message(message.from_user.id, 'Saved it!')
+        elif answer == 'Add another description':
+            bot.send_message(message.from_user.id, 'Write word description:')
+            bot.register_next_step_handler(message, add_user_word_desc, tg_id, word_id)
+
+
+def add_user_word_desc(message, tg_id, word_id):
+    if tg_id == message.from_user.id:
+        user_id = db.get_user_id(tg_id)
+        save_word(user_id, word_id, 'repetition', user_word_description=message.text)
+        bot.send_message(message.from_user.id, 'Saved it!')
 
 
 bot.add_custom_filter(custom_filters.TextMatchFilter())
