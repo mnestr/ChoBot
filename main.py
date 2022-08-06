@@ -131,7 +131,7 @@ def show_word_decription(message, id=None, scraped_desc=None):
                                                                                     full_description[0][3],
                                                                                     examp,
                                                                                     user_word_description),
-                         reply_markup=markup, parse_mode='markdown')
+                         disable_notification=True, reply_markup=markup, parse_mode='markdown')
     else:
         bot.send_message(message.chat.id,
                          "  *{0}* (_{1}_) - {2} *//* {3}\n\n_Example:_\n{4}".format(full_description[0][0],
@@ -139,8 +139,7 @@ def show_word_decription(message, id=None, scraped_desc=None):
                                                                                     full_description[0][1],
                                                                                     full_description[0][3],
                                                                                     examp),
-                         reply_markup=markup, parse_mode='markdown')
-
+                         disable_notification=True, reply_markup=markup, parse_mode='markdown')
 
 
 @bot.message_handler(commands=['start'])
@@ -153,10 +152,10 @@ def start(message):
         markup = types.ReplyKeyboardMarkup(resize_keyboard=True, row_width=1)
         answer_1 = types.KeyboardButton('Sure!')
         markup.add(answer_1)
-        bot.send_message(message.from_user.id, "Hi! I'm Steve!")
+        bot.send_message(message.from_user.id, "Hi! I'm Steve!", disable_notification=True,)
         photo = open('Pictures/1.jpg', 'rb')
-        bot.send_photo(message.from_user.id, photo)
-        bot.send_message(message.from_user.id, "Wanna learn some words?", reply_markup=markup)
+        bot.send_photo(message.from_user.id, photo, disable_notification=True,)
+        bot.send_message(message.from_user.id, "Wanna learn some words?", disable_notification=True, reply_markup=markup)
         bot.register_next_step_handler(message, want_to_start, tg_id)
     else:
         repetition = db.get_repetition(user_id)
@@ -164,13 +163,13 @@ def start(message):
             markup = types.ReplyKeyboardMarkup(resize_keyboard=True, row_width=1)
             answer_1 = types.KeyboardButton('Learn new words')
             markup.add(answer_1)
-            bot.send_message(message.from_user.id, "You have nothing to repeat. Let's see some new words?", reply_markup=markup)
+            bot.send_message(message.from_user.id, "You have nothing to repeat. Let's see some new words?", disable_notification=True, reply_markup=markup)
             bot.register_next_step_handler(message, want_to_start, tg_id)
         else:
             markup = types.ReplyKeyboardMarkup(resize_keyboard=True, row_width=1)
             answer_1 = types.KeyboardButton('Repeat')
             markup.add(answer_1)
-            bot.send_message(message.from_user.id, "You have {0} words to repeat. Let's repeat?".format(len(repetition)), reply_markup=markup)
+            bot.send_message(message.from_user.id, "You have {0} words to repeat. Let's repeat?".format(len(repetition)), disable_notification=True, reply_markup=markup)
 
 
 @bot.message_handler(text=['Learn new words', 'Anything to repeat?'])
@@ -182,7 +181,7 @@ def before_want_to_start(message):
 def want_to_start(message, tg_id):
     answer = message.text
     if answer in ['Sure!', 'Learn new words'] and tg_id == message.from_user.id:
-        bot.send_message(message.chat.id, "Ok. Do you know this one?")
+        bot.send_message(message.chat.id, "Ok. Do you know this one?", disable_notification=True,)
         show_word(message)
     elif answer == 'Anything to repeat?' and tg_id == message.from_user.id:
         before_repeat_word(message)
@@ -212,16 +211,16 @@ def sort_word(message, tg_id, sorted_words_count, id_lrn_tr=None):
         answer_1 = types.KeyboardButton('Sure!')
         answer_2 = types.KeyboardButton('Later')
         markup.add(answer_1, answer_2)
-        bot.send_message(message.from_user.id, 'You have 3 new words to learn. Wanna start?', reply_markup=markup)
+        bot.send_message(message.from_user.id, 'You have 3 new words to learn. Wanna start?', disable_notification=True, reply_markup=markup)
         bot.register_next_step_handler(message, want_to_learn, tg_id)
     elif answer == 'Already know' and tg_id == message.from_user.id:
         save_word(user_id, id_lrn_tr[0], 'already_know')
-        bot.send_message(message.from_user.id, 'Lucky you! Here is another word:')
+        bot.send_message(message.from_user.id, 'Lucky you! Here is another word:', disable_notification=True,)
         show_word(message, sorted_words_count)
     elif answer == 'Learn' and tg_id == message.from_user.id:
         save_word(user_id, id_lrn_tr[0], 'repetition')
         sorted_words_count += 1
-        bot.send_message(message.from_user.id, "Ok, let's learn then! Here is another word:")
+        bot.send_message(message.from_user.id, "Ok, let's learn then! Here is another word:", disable_notification=True,)
         show_word(message, sorted_words_count)
     elif answer == 'Show translation' and tg_id == message.from_user.id:
         markup = types.ReplyKeyboardMarkup(resize_keyboard=True, row_width=2)
@@ -229,7 +228,7 @@ def sort_word(message, tg_id, sorted_words_count, id_lrn_tr=None):
         answer_2 = types.KeyboardButton('Learn')
         markup.add(answer_1, answer_2)
         show_word_decription(message, id=id_lrn_tr[0])
-        bot.send_message(message.chat.id, "So, do you know it?", reply_markup=markup)
+        bot.send_message(message.chat.id, "So, do you know it?", disable_notification=True, reply_markup=markup)
         bot.register_next_step_handler(message, sort_word, tg_id, sorted_words_count, id_lrn_tr)
 
 
@@ -240,8 +239,9 @@ def want_to_learn(message, tg_id):
     elif answer == 'Later' and tg_id == message.from_user.id:
         markup = types.ReplyKeyboardMarkup(resize_keyboard=True, row_width=1)
         answer_1 = types.KeyboardButton('Hey!')
-        markup.add(answer_1)
-        bot.send_message(message.from_user.id, 'As you wish=/', reply_markup=markup)
+        answer_2 = types.KeyboardButton('Add my word')
+        markup.add(answer_1, answer_2)
+        bot.send_message(message.from_user.id, 'As you wish=/', disable_notification=True, reply_markup=markup)
 
 
 @bot.message_handler(text=['Repeat'])
@@ -257,7 +257,7 @@ def repeat_word(message, repetition):
         tg_id = message.from_user.id
         id_lrn_tr = pickup_word(repetition)
         markup = pickup_answers_on_buttons(id_lrn_tr)
-        bot.send_message(message.chat.id, id_lrn_tr[2], reply_markup=markup)
+        bot.send_message(message.chat.id, id_lrn_tr[2], disable_notification=True, reply_markup=markup)
         bot.register_next_step_handler(message, check_answer, tg_id, id_lrn_tr)
     elif len(repetition) == 0:
         markup = types.ReplyKeyboardMarkup(resize_keyboard=True, row_width=2)
@@ -285,7 +285,7 @@ def check_answer(message, tg_id, id_lrn_tr=None, level_down_once=0):
         if level_down_once == 0:
             db.count_repetition(id_lrn_tr[0], user_id, "-1")
             level_down_once = 1
-        bot.send_message(message.from_user.id, 'Try again')
+        bot.send_message(message.from_user.id, 'Try again', disable_notification=True,)
         bot.register_next_step_handler(message, check_answer, tg_id, id_lrn_tr,  level_down_once=level_down_once)
 
 
@@ -293,7 +293,7 @@ def check_answer(message, tg_id, id_lrn_tr=None, level_down_once=0):
 @bot.message_handler(text=['добавить слово', 'add word', 'Add my word'])
 def start_dialog_add_word(message):
     tg_id = message.from_user.id
-    bot.send_message(message.from_user.id, 'Write your word:')
+    bot.send_message(message.from_user.id, 'Write your word:', disable_notification=True,)
     bot.register_next_step_handler(message, recieve_word, tg_id)
 
 
@@ -309,7 +309,7 @@ def recieve_word(message, tg_id):
             scraped_desc = scrap_word(user_word)
             if not scraped_desc:
                 word_id = db.insert_word(user_word, None, None, None, None, user_id)
-                bot.send_message(message.from_user.id, "Can't find any description. Please add your own:")
+                bot.send_message(message.from_user.id, "Can't find any description. Please add your own:", disable_notification=True,)
                 bot.register_next_step_handler(message, add_user_word_desc, tg_id, word_id)
             elif scraped_desc:
                 db.insert_word(scrap_word[0], scrap_word[1], scrap_word[2], scrap_word[3], scrap_word[4], user_id)
@@ -318,7 +318,7 @@ def recieve_word(message, tg_id):
         answer_1 = types.KeyboardButton('Yep')
         answer_2 = types.KeyboardButton('Add another description')
         markup.add(answer_1, answer_2)
-        bot.send_message(message.from_user.id, "I've found it! Do you want to add it to your learning list?", reply_markup=markup)
+        bot.send_message(message.from_user.id, "I've found it! Do you want to add it to your learning list?", disable_notification=True, reply_markup=markup)
         bot.register_next_step_handler(message, user_answer_dialog_add_word, tg_id, word_id)
 
 
@@ -328,9 +328,9 @@ def user_answer_dialog_add_word(message, tg_id, word_id):
         if answer == 'Yep':
             user_id = db.get_user_id(tg_id)
             save_word(user_id, word_id, 'repetition')
-            bot.send_message(message.from_user.id, 'Saved it!')
+            bot.send_message(message.from_user.id, 'Saved it!', disable_notification=True,)
         elif answer == 'Add another description':
-            bot.send_message(message.from_user.id, 'Write word description:')
+            bot.send_message(message.from_user.id, 'Write word description:', disable_notification=True,)
             bot.register_next_step_handler(message, add_user_word_desc, tg_id, word_id)
 
 
@@ -338,7 +338,7 @@ def add_user_word_desc(message, tg_id, word_id):
     if tg_id == message.from_user.id:
         user_id = db.get_user_id(tg_id)
         save_word(user_id, word_id, 'repetition', user_word_description=message.text)
-        bot.send_message(message.from_user.id, 'Saved it!')
+        bot.send_message(message.from_user.id, 'Saved it!', disable_notification=True,)
 
 
 bot.add_custom_filter(custom_filters.TextMatchFilter())
