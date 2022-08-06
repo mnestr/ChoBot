@@ -238,9 +238,10 @@ def want_to_learn(message, tg_id):
         before_repeat_word(message)
     elif answer == 'Later' and tg_id == message.from_user.id:
         markup = types.ReplyKeyboardMarkup(resize_keyboard=True, row_width=1)
-        answer_1 = types.KeyboardButton('Hey!')
-        answer_2 = types.KeyboardButton('Add my word')
-        markup.add(answer_1, answer_2)
+        answer_1 = types.KeyboardButton('Anything to repeat?')
+        answer_2 = types.KeyboardButton('Learn new words')
+        answer_3 = types.KeyboardButton('Add word')
+        markup.add(answer_1, answer_2, answer_3)
         bot.send_message(message.from_user.id, 'As you wish=/', disable_notification=True, reply_markup=markup)
 
 
@@ -263,7 +264,7 @@ def repeat_word(message, repetition):
         markup = types.ReplyKeyboardMarkup(resize_keyboard=True, row_width=2)
         answer_1 = types.KeyboardButton('Anything to repeat?')
         answer_2 = types.KeyboardButton('Learn new words')
-        answer_3 = types.KeyboardButton('Add my word')
+        answer_3 = types.KeyboardButton('Add word')
         markup.add(answer_1, answer_2, answer_3)
         bot.send_message(message.from_user.id, "You've repeated all words. Try to memorize them and Come back later to repeat", disable_notification=True, reply_markup=markup)
         tg_id = message.from_user.id
@@ -290,7 +291,7 @@ def check_answer(message, tg_id, id_lrn_tr=None, level_down_once=0):
 
 
 @bot.message_handler(commands=['add_word'])
-@bot.message_handler(text=['добавить слово', 'add word', 'Add my word'])
+@bot.message_handler(text=['добавить слово', 'add word', 'Add word'])
 def start_dialog_add_word(message):
     tg_id = message.from_user.id
     bot.send_message(message.from_user.id, 'Write your word:', disable_notification=True,)
@@ -312,7 +313,7 @@ def recieve_word(message, tg_id):
                 bot.send_message(message.from_user.id, "Can't find any description. Please add your own:", disable_notification=True,)
                 bot.register_next_step_handler(message, add_user_word_desc, tg_id, word_id)
             elif scraped_desc:
-                db.insert_word(scrap_word[0], scrap_word[1], scrap_word[2], scrap_word[3], scrap_word[4], user_id)
+                db.insert_word(scraped_desc[0], scraped_desc[1], scraped_desc[2], scraped_desc[3], scraped_desc[4], user_id)
         show_word_decription(message, id=word_id, scraped_desc=scraped_desc)
         markup = types.ReplyKeyboardMarkup(resize_keyboard=True, row_width=2)
         answer_1 = types.KeyboardButton('Yep')
@@ -338,7 +339,12 @@ def add_user_word_desc(message, tg_id, word_id):
     if tg_id == message.from_user.id:
         user_id = db.get_user_id(tg_id)
         save_word(user_id, word_id, 'repetition', user_word_description=message.text)
-        bot.send_message(message.from_user.id, 'Saved it!', disable_notification=True,)
+        markup = types.ReplyKeyboardMarkup(resize_keyboard=True, row_width=2)
+        answer_1 = types.KeyboardButton('Anything to repeat?')
+        answer_2 = types.KeyboardButton('Learn new words')
+        answer_3 = types.KeyboardButton('Add word')
+        markup.add(answer_1, answer_2, answer_3)
+        bot.send_message(message.from_user.id, 'Saved it!', disable_notification=True, reply_markup=markup)
 
 
 bot.add_custom_filter(custom_filters.TextMatchFilter())
