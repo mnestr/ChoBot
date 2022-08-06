@@ -102,7 +102,7 @@ def pickup_word(repetition):
 
 
 def format_string(full_translation):
-    examp_list = full_translation[0][4].split("\n")
+    examp_list = full_translation[4].split("\n")
     examp_list2 = []
     for i in examp_list:
         if not i: continue
@@ -111,33 +111,33 @@ def format_string(full_translation):
     return examp
 
 
-def show_word_decription(message, id=None, scraped_desc=None):
-    if id:
-        full_description = db.get_descr_from_dict(id)
+def show_word_decription(message, word_id=None, scraped_desc=None):
+    if word_id:
+        full_description = db.get_descr_from_dict(word_id)
     elif scraped_desc:
         full_description = scraped_desc
-    user_word_description = db.get_user_descr(id)
+    user_word_description = db.get_user_descr(word_id)
     markup = types.InlineKeyboardMarkup()
     markup.add(types.InlineKeyboardButton("More",
                                            url='https://dictionary.cambridge.org/dictionary/english-russian/{0}'.format(
-                                               full_description[0][0]))) #надо проверять доступно ли слово по этому адресу и скрывать кнопку если нет
+                                               full_description[0]))) #надо проверять доступно ли слово по этому адресу и скрывать кнопку если нет
     examp = format_string(full_description)
     if user_word_description:
         bot.send_message(message.chat.id,
                          "  *{0}* (_{1}_) - {2} *//* {3}\n\n_Additional meaning:_{5}\n\n_Example:_\n{4}".format(
-                                                                                    full_description[0][0],
-                                                                                    full_description[0][2],
-                                                                                    full_description[0][1],
-                                                                                    full_description[0][3],
+                                                                                    full_description[0],
+                                                                                    full_description[2],
+                                                                                    full_description[1],
+                                                                                    full_description[3],
                                                                                     examp,
                                                                                     user_word_description),
                          disable_notification=True, reply_markup=markup, parse_mode='markdown')
     else:
         bot.send_message(message.chat.id,
-                         "  *{0}* (_{1}_) - {2} *//* {3}\n\n_Example:_\n{4}".format(full_description[0][0],
-                                                                                    full_description[0][2],
-                                                                                    full_description[0][1],
-                                                                                    full_description[0][3],
+                         "  *{0}* (_{1}_) - {2} *//* {3}\n\n_Example:_\n{4}".format(full_description[0],
+                                                                                    full_description[1],
+                                                                                    full_description[2],
+                                                                                    full_description[3],
                                                                                     examp),
                          disable_notification=True, reply_markup=markup, parse_mode='markdown')
 
@@ -314,11 +314,12 @@ def recieve_word(message, tg_id):
                 bot.register_next_step_handler(message, add_user_word_desc, tg_id, word_id)
             elif scraped_desc:
                 db.insert_word(scraped_desc[0], scraped_desc[1], scraped_desc[2], scraped_desc[3], scraped_desc[4], user_id)
-        show_word_decription(message, id=word_id, scraped_desc=scraped_desc)
+        show_word_decription(message, word_id=word_id, scraped_desc=scraped_desc)
         markup = types.ReplyKeyboardMarkup(resize_keyboard=True, row_width=2)
         answer_1 = types.KeyboardButton('Yep')
-        answer_2 = types.KeyboardButton('Add another description')
-        markup.add(answer_1, answer_2)
+        answer_2 = types.KeyboardButton('Nope')
+        answer_3 = types.KeyboardButton('Add another description')
+        markup.add(answer_1, answer_2, answer_3)
         bot.send_message(message.from_user.id, "I've found it! Do you want to add it to your learning list?", disable_notification=True, reply_markup=markup)
         bot.register_next_step_handler(message, user_answer_dialog_add_word, tg_id, word_id)
 
@@ -333,6 +334,13 @@ def user_answer_dialog_add_word(message, tg_id, word_id):
         elif answer == 'Add another description':
             bot.send_message(message.from_user.id, 'Write word description:', disable_notification=True,)
             bot.register_next_step_handler(message, add_user_word_desc, tg_id, word_id)
+        elif answer == 'Nope':
+            markup = types.ReplyKeyboardMarkup(resize_keyboard=True, row_width=2)
+            answer_1 = types.KeyboardButton('Anything to repeat?')
+            answer_2 = types.KeyboardButton('Learn new words')
+            answer_3 = types.KeyboardButton('Add word')
+            markup.add(answer_1, answer_2, answer_3)
+            bot.send_message(message.from_user.id, "Ok, what's next?", disable_notification=True, reply_markup=markup)
 
 
 def add_user_word_desc(message, tg_id, word_id):

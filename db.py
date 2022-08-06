@@ -197,15 +197,15 @@ def get_descr_from_dict(id):
     try:
         cur = conn.cursor()
         cur.execute(sql,(id,))
-        tr_word = cur.fetchall()
+        word_dscr = cur.fetchall()
         cur.close()  # close communication with the database
         conn.close()
+        return word_dscr[0]
     except (Exception, psycopg2.DatabaseError) as error:
         print(error)
     finally:
         if conn is not None:
             conn.close()
-    return tr_word
 
 
 def insert_word_user_dict(user_id, word_id, status, user_word_description):
