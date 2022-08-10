@@ -6,8 +6,18 @@ import db
 import config
 from bs4 import BeautifulSoup
 import requests
+from telebot.handler_backends import State, StatesGroup
+from telebot.storage import StateMemoryStorage
 
-bot = telebot.TeleBot(config.token, parse_mode=None)
+
+state_storage = StateMemoryStorage()
+bot = telebot.TeleBot(config.token, state_storage=state_storage, parse_mode=None)
+
+
+class MyStates(StatesGroup):
+    name = State()
+    surname = State()
+    age = State()
 
 # repetitions = {1: 15 минут, 2: 6 часов, 3: 1 день, 4: 2 дня, 4: 3 суток, 5: 5 дней, 6: 7 дней, 7: 14 дней, 8: 1 месяц}
 
@@ -157,7 +167,7 @@ def start(message):
         photo = open('Pictures/1.jpg', 'rb')
         bot.send_photo(message.from_user.id, photo, disable_notification=True,)
         bot.send_message(message.from_user.id, "Wanna learn some words?", disable_notification=True, reply_markup=markup)
-        bot.register_next_step_handler(message, want_to_start, tg_id)
+        bot.register_next_step_handler(message, want_to_start)
     else:
         repetition = db.get_repetition(user_id)
         if not repetition:
@@ -173,7 +183,7 @@ def start(message):
             bot.send_message(message.from_user.id, "You have {0} words to repeat. Let's repeat?".format(len(repetition)), disable_notification=True, reply_markup=markup)
 
 
-@bot.message_handler(text=['Learn new words', 'Anything to repeat?'])
+@bot.message_handler(text=['Sure!', 'Learn new words', 'Anything to repeat?'])
 def want_to_start(message):
     answer = message.text
     if answer in ['Sure!', 'Learn new words']:
@@ -263,8 +273,6 @@ def repeat_word(message, repetition):
         answer_3 = types.KeyboardButton('Add word')
         markup.add(answer_1, answer_2, answer_3)
         bot.send_message(message.from_user.id, "You've repeated all words. Try to memorize them and Come back later to repeat", disable_notification=True, reply_markup=markup)
-        tg_id = message.from_user.id
-        bot.register_next_step_handler(message, want_to_start, tg_id)
 
 
 def check_answer(message, tg_id, id_lrn_tr=None, level_down_once=0):
@@ -362,5 +370,35 @@ def add_user_word_desc(message, tg_id, word_id):
         bot.send_message(message.from_user.id, "Saved it! Saved it! What's next?", disable_notification=True, reply_markup=markup)
 
 
+@bot.message_handler(commands=['test'])
+def start_dialog_add_word(message):
+    """
+    Start command. Here we are starting state
+    """
+    bot.set_state(message.from_user.id, MyStates.name, message.chat.id)
+    bot.send_message(message.chat.id, 'Hi, write me a name')
+
+
+@bot.message_handler(state=MyStates.name)
+def name_get(message):
+    """
+    State 1. Will process when user's state is MyStates.name.
+    """
+    bot.send_message(message.chat.id, 'Now write me a surname')
+    bot.set_state(message.from_user.id, MyStates.surname, message.chat.id)
+    with bot.retrieve_data(message.from_user.id, message.chat.id) as data:
+        data['name'] = message.text
+    print(data)
+    bot.delete_state(message.from_user.id, message.chat.id)
+    print(data)
+
+
+@bot.message_handler(commands=['name'])
+def show_name(message):
+    with bot.retrieve_data(message.from_user.id, message.chat.id) as data:
+        print(data)
+
+
+bot.add_custom_filter(custom_filters.StateFilter(bot))
 bot.add_custom_filter(custom_filters.TextMatchFilter())
 bot.polling(none_stop=True)

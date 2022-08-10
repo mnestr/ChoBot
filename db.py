@@ -85,7 +85,7 @@ def get_new_words_from_dictionary(user_id):
     sql = """SELECT d.id, d.word, d.translation FROM dictionary d
             LEFT JOIN (select word_id from user_dictionary where user_id = %s) ud
             ON d.id = ud.word_id
-            WHERE ud.word_id IS NULL;"""
+            WHERE ud.word_id IS NULL and d.translation is not null;"""
     conn = psycopg2.connect(
         database=config.database, user=config.user,
         password=config.password,
@@ -167,7 +167,7 @@ def get_repetition(user_id):
                 repetition = 6 and timediff> cast('7 day' as interval) or
                 repetition = 7 and timediff> cast('14 day' as interval) or
                 repetition = 8 and timediff> cast('1 month' as interval)
-            )and status != 'already_know' and user_id = %s;"""
+            )and status != 'already_know' and translation is not NULL and user_id = %s;"""
     conn = psycopg2.connect(
         database=config.database, user=config.user,
         password=config.password,
