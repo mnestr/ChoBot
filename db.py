@@ -82,10 +82,11 @@ def insert_word(word, translation, prt_of_speach, meaning, examp, user_id):
 
 
 def get_new_words_from_dictionary(user_id):
+    print(user_id)
     sql = """SELECT d.id, d.word, d.translation FROM dictionary d
             LEFT JOIN (select word_id from user_dictionary where user_id = %s) ud
             ON d.id = ud.word_id
-            WHERE ud.word_id IS NULL and d.translation is not null;"""
+            WHERE ud.word_id IS NULL and d.translation is not NULL;"""
     conn = psycopg2.connect(
         database=config.database, user=config.user,
         password=config.password,
@@ -124,31 +125,6 @@ def get_words_from_dictionary():
         if conn is not None:
             conn.close()
     return words_from_dictionary
-
-
-def get_user_dictionary(user_id):
-    sql = """SELECT word_id FROM user_dictionary where user_id = %s;"""
-    conn = psycopg2.connect(
-        database=config.database, user=config.user,
-        password=config.password,
-        host=config.host, port=config.port, sslmode='require'
-    )
-    try:
-        cur = conn.cursor()
-        cur.execute(sql,(user_id,))
-        user_dictionary_from_db = cur.fetchall()
-        user_dictionary =[]
-        for x in user_dictionary_from_db:
-            for y in x:
-                user_dictionary.append(y)
-        cur.close()  # close communication with the database
-        conn.close()
-    except (Exception, psycopg2.DatabaseError) as error:
-        print(error)
-    finally:
-        if conn is not None:
-            conn.close()
-    return user_dictionary
 
 
 def get_repetition(user_id):
