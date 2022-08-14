@@ -190,7 +190,7 @@ def start(message):
 @bot.message_handler(text=['Sure!', 'Learn new words', 'Repeat', 'Anything to repeat?', 'Later'])
 def before_show_word(message):
     if message.text == 'Learn new words':
-        bot.send_message(message.chat.id, "Ok. Do you know this one?", disable_notification=True,)
+        bot.send_message(message.from_user.id, "Ok. Do you know this one?", disable_notification=True,)
         bot.set_state(message.from_user.id, MyStates.sort_words, message.chat.id)
         with bot.retrieve_data(message.from_user.id, message.chat.id) as data:
             data['sorted_words_count'] = 0
@@ -218,7 +218,7 @@ def show_word(message):
     markup.add(answer_1, answer_2, answer_3)
     with bot.retrieve_data(message.from_user.id, message.chat.id) as data:
         data['id_lrn_tr'] = id_lrn_tr
-    bot.send_message(message.chat.id, id_lrn_tr[1], disable_notification=True, reply_markup=markup)
+    bot.send_message(message.from_user.id, id_lrn_tr[1], disable_notification=True, reply_markup=markup)
 
 
 @bot.message_handler(state=MyStates.sort_words)
@@ -246,12 +246,12 @@ def sort_word(message):
         bot.send_message(message.from_user.id, "Ok, let's learn then! Here is another word:", disable_notification=True,)
         show_word(message)
     elif answer == 'Show translation':
-        markup = types.ReplyKeyboardMarkup(row_width=2)
+        markup = types.ReplyKeyboardMarkup(resize_keyboard=True, row_width=2)
         answer_1 = types.KeyboardButton('Already know')
         answer_2 = types.KeyboardButton('Learn')
         markup.add(answer_1, answer_2)
         show_word_description(message, word_id=data['id_lrn_tr'][0])
-        bot.send_message(message.chat.id, "So, do you know it?", disable_notification=True, reply_markup=markup)
+        bot.send_message(message.from_user.id, "So, do you know it?", disable_notification=True, reply_markup=markup)
 
 
 def repeat_word(message):
@@ -265,7 +265,7 @@ def repeat_word(message):
         with bot.retrieve_data(message.from_user.id, message.chat.id) as data:
             data['level_down_once'] = 0
             data['id_lrn_tr'] = id_lrn_tr
-        bot.send_message(message.chat.id, id_lrn_tr[2], disable_notification=True, reply_markup=markup)
+        bot.send_message(message.from_user.id, id_lrn_tr[2], disable_notification=True, reply_markup=markup)
     elif len(repetition) == 0:
         markup = types.ReplyKeyboardMarkup(row_width=2)
         answer_1 = types.KeyboardButton('Anything to repeat?')
