@@ -2,11 +2,11 @@ import psycopg2
 import config
 
 
-def db_insert_user(tg_id, first_name, last_name, language_code, user_name):
+def db_insert_user(tg_id, chat_id, first_name, last_name, language_code, user_name):
     sql_exists = """SELECT tg_id FROM users WHERE tg_id=%s LIMIT 1;"""
 
-    sql_insert = """INSERT INTO users(tg_id, first_name, last_name, lang_code, user_name)
-             VALUES(%s, %s, %s, %s, %s);"""
+    sql_insert = """INSERT INTO users(tg_id, chat_id, first_name, last_name, lang_code, user_name)
+             VALUES(%s, %s, %s, %s, %s, %s);"""
 
     conn = psycopg2.connect(
         database=config.database, user=config.user,
@@ -17,10 +17,10 @@ def db_insert_user(tg_id, first_name, last_name, language_code, user_name):
         cur = conn.cursor()  # create a new cursor
         cur.execute(sql_exists, (tg_id,))
         tg_id_from_db = cur.fetchall()
-        if tg_id_from_db == []:
+        if not tg_id_from_db:
             cur = conn.cursor()
             cur.execute(sql_insert,
-                        (tg_id, first_name, last_name, language_code, user_name))  # execute the INSERT statement
+                        (tg_id, chat_id, first_name, last_name, language_code, user_name))  # execute the INSERT statement
             conn.commit()  # commit the changes to the database
             cur.close()  # close communication with the database
         else:
@@ -156,6 +156,43 @@ def get_repetition(user_id):
         cur.close()  # close communication with the database
         conn.close()
         return repetition
+    except (Exception, psycopg2.DatabaseError) as error:
+        print(error)
+    finally:
+        if conn is not None:
+            conn.close()
+
+
+def get_notify_list():
+    sql = """SELECT ud.user_id, count(word_id), MAX(ud.updated_at) from (
+                SELECT *, now() - updated_at as timediff from user_dictionary
+            ) as ud 
+            LEFT JOIN dictionary as d 
+            ON ud.word_id = d.id
+            where (
+                repetition = 0 or
+                repetition = 1 and timediff> cast('15 minutes' as interval) or
+                repetition = 2 and timediff> cast('6 hour' as interval) or
+                repetition = 3 and timediff> cast('1 day' as interval) or
+                repetition = 4 and timediff> cast('2 day' as interval) or
+                repetition = 5 and timediff> cast('5 day' as interval) or
+                repetition = 6 and timediff> cast('7 day' as interval) or
+                repetition = 7 and timediff> cast('14 day' as interval) or
+                repetition = 8 and timediff> cast('1 month' as interval)
+            )and status != 'already_know' and translation is not NULL
+            group by ud.user_id;"""
+    conn = psycopg2.connect(
+        database=config.database, user=config.user,
+        password=config.password,
+        host=config.host, port=config.port, sslmode='require'
+    )
+    try:
+        cur = conn.cursor()
+        cur.execute(sql)
+        notify_list = cur.fetchall()
+        cur.close()  # close communication with the database
+        conn.close()
+        return notify_list
     except (Exception, psycopg2.DatabaseError) as error:
         print(error)
     finally:
