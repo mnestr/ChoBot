@@ -164,7 +164,8 @@ def get_repetition(user_id):
 
 
 def get_notify_list():
-    sql = """SELECT u.chat_id, count(ud.word_id), MAX(ud.updated_at) from (
+    sql = """SELECT ud.user_id, u.chat_id, count(ud.word_id), MAX(ud.updated_at), u.notifications_count, 
+            u.last_notification_at from (
                 SELECT *, now() - updated_at as timediff from user_dictionary
             ) as ud 
             LEFT JOIN dictionary as d 
@@ -182,7 +183,7 @@ def get_notify_list():
                 repetition = 7 and timediff> cast('14 day' as interval) or
                 repetition = 8 and timediff> cast('1 month' as interval)
             )and status != 'already_know' and translation is not NULL
-            group by ud.user_id, u.chat_id;"""
+            group by ud.user_id, u.chat_id, u.notifications_count, u.last_notification_at;"""
     conn = psycopg2.connect(
         database=config.database, user=config.user,
         password=config.password,
@@ -195,6 +196,44 @@ def get_notify_list():
         cur.close()  # close communication with the database
         conn.close()
         return notify_list
+    except (Exception, psycopg2.DatabaseError) as error:
+        print(error)
+    finally:
+        if conn is not None:
+            conn.close()
+
+
+def count_notification(user_id, count):
+    sql = """SELECT notifications_count FROM users where id = %s;"""
+    sql_update = """UPDATE users
+                    SET notifications_count = %s
+                    WHERE id = %s;"""
+    conn = psycopg2.connect(
+        database=config.database, user=config.user,
+        password=config.password,
+        host=config.host, port=config.port, sslmode='require'
+    )
+    try:
+        cur = conn.cursor()
+        cur.execute(sql,(user_id,))
+        counter = cur.fetchall()
+        n = counter[0][0]
+        if count == "+1":
+            if n < 8:
+                n += 1
+                cur = conn.cursor()
+                cur.execute(sql_update,(n, user_id))
+                conn.commit()
+                cur.close()  # close communication with the database
+                conn.close()
+        elif count == "0":
+            if n > 0:
+                n = 0
+                cur = conn.cursor()
+                cur.execute(sql_update,(n, user_id))
+                conn.commit()
+                cur.close()  # close communication with the database
+                conn.close()
     except (Exception, psycopg2.DatabaseError) as error:
         print(error)
     finally:
@@ -300,7 +339,7 @@ def count_repetition(word_id, user_id, count):
             if n > 0:
                 n -= 1
                 cur = conn.cursor()
-                cur.execute(sql_update,(n, word_id, user_id))
+                cur.execute(sql_update,(n, user_id, word_id))
                 conn.commit()
                 cur.close()  # close communication with the database
                 conn.close()
