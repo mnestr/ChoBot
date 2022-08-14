@@ -164,11 +164,13 @@ def get_repetition(user_id):
 
 
 def get_notify_list():
-    sql = """SELECT ud.user_id, count(word_id), MAX(ud.updated_at) from (
+    sql = """SELECT u.chat_id, count(ud.word_id), MAX(ud.updated_at) from (
                 SELECT *, now() - updated_at as timediff from user_dictionary
             ) as ud 
             LEFT JOIN dictionary as d 
             ON ud.word_id = d.id
+            LEFT JOIN users as u
+            ON ud.user_id = u.id
             where (
                 repetition = 0 or
                 repetition = 1 and timediff> cast('15 minutes' as interval) or
@@ -180,7 +182,7 @@ def get_notify_list():
                 repetition = 7 and timediff> cast('14 day' as interval) or
                 repetition = 8 and timediff> cast('1 month' as interval)
             )and status != 'already_know' and translation is not NULL
-            group by ud.user_id;"""
+            group by ud.user_id, u.chat_id;"""
     conn = psycopg2.connect(
         database=config.database, user=config.user,
         password=config.password,
