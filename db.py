@@ -206,7 +206,7 @@ def get_notify_list():
 def count_notification(user_id, count):
     sql = """SELECT notifications_count FROM users where id = %s;"""
     sql_update = """UPDATE users
-                    SET notifications_count = %s
+                    SET notifications_count = %s, last_notification_at = now()
                     WHERE id = %s;"""
     conn = psycopg2.connect(
         database=config.database, user=config.user,
