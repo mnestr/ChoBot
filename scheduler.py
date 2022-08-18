@@ -10,8 +10,8 @@ bot = telebot.TeleBot(config.token, parse_mode=None)
 if __name__ == "__main__":
     notify_list = db.get_notify_list()
     for item in notify_list:
-        delta = timezone('UTC').localize(datetime.datetime.now()) - item[5]
-        if delta.days > 1:
+        # delta = timezone('UTC').localize(datetime.datetime.now()) - item[5]
+        if not item[5] or item[3] > item[5]:
             db.count_notification(item[0], "+1")
             markup = types.ReplyKeyboardMarkup(row_width=2)
             answer_1 = types.KeyboardButton('Anything to repeat?')
