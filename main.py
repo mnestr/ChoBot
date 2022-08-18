@@ -188,6 +188,7 @@ def start(message):
             bot.send_message(message.chat.id, "You have {0} words to repeat. Let's repeat?".format(len(repetition)), disable_notification=True, reply_markup=markup)
 
 
+@bot.message_handler(commands=['home'])
 @bot.message_handler(text=['Sure!', 'Learn new words', 'Repeat', 'Anything to repeat?', 'Later'])
 def before_show_word(message):
     if message.text == 'Learn new words':
@@ -205,6 +206,13 @@ def before_show_word(message):
         answer_3 = types.KeyboardButton('Add word')
         markup.add(answer_1, answer_2, answer_3)
         bot.send_message(message.chat.id, 'As you wish=/', disable_notification=True, reply_markup=markup)
+    elif message.text == '/home':
+        markup = types.ReplyKeyboardMarkup(row_width=2)
+        answer_1 = types.KeyboardButton('Anything to repeat?')
+        answer_2 = types.KeyboardButton('Learn new words')
+        answer_3 = types.KeyboardButton('Add word')
+        markup.add(answer_1, answer_2, answer_3)
+        bot.send_message(message.chat.id, 'Hey, whats up?', disable_notification=True, reply_markup=markup)
 
 
 def show_word(message):
