@@ -128,22 +128,19 @@ def get_words_from_dictionary():
 
 
 def get_repetition(user_id):
-    sql = """SELECT d.id, d.word, d.translation  from (
-                SELECT *, now() - updated_at as timediff from user_dictionary
-            ) as ud 
-            LEFT JOIN dictionary as d 
-            ON ud.word_id = d.id
-            where (
-                repetition = 0 or
-                repetition = 1 and timediff> cast('15 minutes' as interval) or
-                repetition = 2 and timediff> cast('6 hour' as interval) or
-                repetition = 3 and timediff> cast('1 day' as interval) or
-                repetition = 4 and timediff> cast('2 day' as interval) or
-                repetition = 5 and timediff> cast('5 day' as interval) or
-                repetition = 6 and timediff> cast('7 day' as interval) or
-                repetition = 7 and timediff> cast('14 day' as interval) or
-                repetition = 8 and timediff> cast('1 month' as interval)
-            )and status != 'already_know' and user_id = %s;"""
+    sql = """SELECT t.word_id, t.word, t.translation  from (
+                SELECT *, now() - updated_at as timediff from user_dictionary as ud 
+                LEFT JOIN dictionary as d ON ud.word_id = d.id) as t
+                where (t.repetition = 0 or
+                t.repetition = 1 and timediff > interval '15 minutes' or
+                t.repetition = 2 and timediff > interval '6 hour' or
+                t.repetition = 3 and timediff > interval '1 day' or
+                t.repetition = 4 and timediff > interval '2 day' or
+                t.repetition = 5 and timediff > interval '5 day' or
+                t.repetition = 6 and timediff > interval '7 day' or
+                t.repetition = 7 and timediff > interval '14 day' or
+                t.repetition = 8 and timediff > interval '1 month'
+                ) and t.status != 'already_know' and t.user_id = %s;"""
     conn = psycopg2.connect(
         database=config.database, user=config.user,
         password=config.password,
@@ -164,26 +161,24 @@ def get_repetition(user_id):
 
 
 def get_notify_list():
-    sql = """SELECT ud.user_id, u.chat_id, count(ud.word_id), MAX(ud.updated_at), u.notifications_count, 
-            u.last_notification_at from (
-                SELECT *, now() - updated_at as timediff from user_dictionary
-            ) as ud 
-            LEFT JOIN dictionary as d 
-            ON ud.word_id = d.id
-            LEFT JOIN users as u
-            ON ud.user_id = u.id
-            where (
-                repetition = 0 or
-                repetition = 1 and timediff> cast('15 minutes' as interval) or
-                repetition = 2 and timediff> cast('6 hour' as interval) or
-                repetition = 3 and timediff> cast('1 day' as interval) or
-                repetition = 4 and timediff> cast('2 day' as interval) or
-                repetition = 5 and timediff> cast('5 day' as interval) or
-                repetition = 6 and timediff> cast('7 day' as interval) or
-                repetition = 7 and timediff> cast('14 day' as interval) or
-                repetition = 8 and timediff> cast('1 month' as interval)
-            )and status != 'already_know'
-            group by ud.user_id, u.chat_id, u.notifications_count, u.last_notification_at;"""
+    sql = """SELECT t.user_id, t.chat_id, count(t.word_id), MAX(t.updated_at), t.notifications_count, 
+                t.last_notification_at  from (
+                SELECT ud.user_id, ud.word_id, ud.updated_at, ud.repetition, ud.status,
+                u.chat_id, u.notifications_count, u.last_notification_at, 
+                now() - updated_at as timediff from user_dictionary as ud 
+                LEFT JOIN dictionary as d ON ud.word_id = d.id
+                LEFT JOIN users as u ON ud.user_id = u.id) as t
+                where (t.repetition = 0 or
+                t.repetition = 1 and timediff > interval '15 minutes' or
+                t.repetition = 2 and timediff > interval '6 hour' or
+                t.repetition = 3 and timediff > interval '1 day' or
+                t.repetition = 4 and timediff > interval '2 day' or
+                t.repetition = 5 and timediff > interval '5 day' or
+                t.repetition = 6 and timediff > interval '7 day' or
+                t.repetition = 7 and timediff > interval '14 day' or
+                t.repetition = 8 and timediff > interval '1 month'
+                ) and t.status != 'already_know'
+                group by t.user_id, t.chat_id, t.notifications_count, t.last_notification_at;"""
     conn = psycopg2.connect(
         database=config.database, user=config.user,
         password=config.password,
