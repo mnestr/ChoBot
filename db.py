@@ -198,7 +198,7 @@ def get_notify_list():
             conn.close()
 
 
-def count_notification(user_id, count):
+def count_notification(user_id):
     sql = """SELECT notifications_count FROM users where id = %s;"""
     sql_update = """UPDATE users
                     SET notifications_count = %s, last_notification_at = now()
@@ -213,22 +213,12 @@ def count_notification(user_id, count):
         cur.execute(sql,(user_id,))
         counter = cur.fetchall()
         n = counter[0][0]
-        if count == "+1":
-            if n < 8:
-                n += 1
-                cur = conn.cursor()
-                cur.execute(sql_update,(n, user_id))
-                conn.commit()
-                cur.close()  # close communication with the database
-                conn.close()
-        elif count == "0":
-            if n > 0:
-                n = 0
-                cur = conn.cursor()
-                cur.execute(sql_update,(n, user_id))
-                conn.commit()
-                cur.close()  # close communication with the database
-                conn.close()
+        n += 1
+        cur = conn.cursor()
+        cur.execute(sql_update,(n, user_id))
+        conn.commit()
+        cur.close()  # close communication with the database
+        conn.close()
     except (Exception, psycopg2.DatabaseError) as error:
         print(error)
     finally:

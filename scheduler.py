@@ -12,7 +12,7 @@ if __name__ == "__main__":
     for item in notify_list:
         # delta = timezone('UTC').localize(datetime.datetime.now()) - item[5]
         if not item[5] or item[3] > item[5]:
-            db.count_notification(item[0], "+1")
+            db.count_notification(item[0])
             markup = types.ReplyKeyboardMarkup(row_width=2)
             answer_1 = types.KeyboardButton('Anything to repeat?')
             answer_2 = types.KeyboardButton('Learn new words')
