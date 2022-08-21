@@ -143,7 +143,7 @@ def get_repetition(user_id):
                 repetition = 6 and timediff> cast('7 day' as interval) or
                 repetition = 7 and timediff> cast('14 day' as interval) or
                 repetition = 8 and timediff> cast('1 month' as interval)
-            )and status != 'already_know' and translation is not NULL and user_id = %s;"""
+            )and status != 'already_know' and user_id = %s;"""
     conn = psycopg2.connect(
         database=config.database, user=config.user,
         password=config.password,
@@ -182,7 +182,7 @@ def get_notify_list():
                 repetition = 6 and timediff> cast('7 day' as interval) or
                 repetition = 7 and timediff> cast('14 day' as interval) or
                 repetition = 8 and timediff> cast('1 month' as interval)
-            )and status != 'already_know' and translation is not NULL
+            )and status != 'already_know'
             group by ud.user_id, u.chat_id, u.notifications_count, u.last_notification_at;"""
     conn = psycopg2.connect(
         database=config.database, user=config.user,
