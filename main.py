@@ -331,7 +331,7 @@ def recieve_word(message):
     if not word_id:
         scraped_desc = scrap_word(user_word)
         if not scraped_desc:
-            word_id = db.insert_word(user_word, None, None, None, None, user_id)
+            db.insert_word(user_word, None, None, None, None, user_id)
             bot.send_message(message.chat.id, "Can't find any description. Please add your own:", disable_notification=True,)
             bot.set_state(message.from_user.id, MyStates.adding_user_word_desc, message.chat.id)
         elif scraped_desc:
@@ -365,9 +365,15 @@ def user_answer_dialog_add_word(message):
         with bot.retrieve_data(message.from_user.id, message.chat.id) as data:
             word_id = data['word_id']
         save_word(user_id, word_id, 'repetition')
-        bot.send_message(message.chat.id, "Saved it! What's next?", disable_notification=True,)
+        markup = types.ReplyKeyboardMarkup(row_width=2)
+        answer_1 = types.KeyboardButton('Anything to repeat?')
+        answer_2 = types.KeyboardButton('Learn new words')
+        answer_3 = types.KeyboardButton('Add word')
+        markup.add(answer_1, answer_2, answer_3)
+        bot.delete_state(message.from_user.id, message.chat.id)
+        bot.send_message(message.chat.id, "Saved it! What's next?", disable_notification=True, reply_markup=markup)
     elif answer == 'Add another description':
-        bot.send_message(message.chat.id, 'Write word description:', disable_notification=True,)
+        bot.send_message(message.chat.id, 'Write word description:', disable_notification=True)
         bot.set_state(message.from_user.id, MyStates.adding_user_word_desc, message.chat.id)
     elif answer == 'Nope':
         markup = types.ReplyKeyboardMarkup(row_width=2)
