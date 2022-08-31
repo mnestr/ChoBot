@@ -2,8 +2,8 @@ import telebot
 import db
 import config
 from telebot import types
-import datetime
-from pytz import timezone
+# import datetime
+# from pytz import timezone
 
 bot = telebot.TeleBot(config.token, parse_mode=None)
 
