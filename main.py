@@ -1,5 +1,7 @@
 import telebot
 import random
+import os
+import subtitles_extractor as se
 from telebot import types
 from telebot import custom_filters
 import db
@@ -24,8 +26,23 @@ class MyStates(StatesGroup):
     sorted_words_count = State()
     level_down_once = State()
     word_id = State()
+    waiting_for_subtitles = State()
+    subtitles_id = State()
 
 # repetitions = {1: 15 минут, 2: 6 часов, 3: 1 день, 4: 2 дня, 4: 3 суток, 5: 5 дней, 6: 7 дней, 7: 14 дней, 8: 1 месяц}
+
+
+def download_file(message):
+    file_info = bot.get_file(message.document.file_id)
+    file = requests.get('https://api.telegram.org/file/bot{0}/{1}'.format(config.token, file_info.file_path))
+    open(message.document.file_unique_id, "wb").write(file.content)
+    with bot.retrieve_data(message.from_user.id, message.chat.id) as rt_data:
+        rt_data['subtitles_id'] = message.document.file_unique_id
+
+
+def delete_file(message):
+    if os.path.exists(message.document.file_unique_id):
+        os.remove(message.document.file_unique_id)
 
 
 def scrap_word(word):
@@ -102,7 +119,7 @@ def pickup_answers_on_buttons(id_lrn_tr):
 
 
 def save_word(user_id, word_id, status, user_word_description=None):
-    db.insert_word_user_dict(user_id, word_id, status, user_word_description)
+    db.upsert_word_user_dict(user_id, word_id, status, user_word_description)
 
 
 def pickup_word(repetition):
@@ -189,7 +206,7 @@ def start(message):
 
 
 @bot.message_handler(commands=['home'])
-@bot.message_handler(text=['Sure!', 'Learn new words', 'Repeat', 'Anything to repeat?', 'Later'])
+@bot.message_handler(text=['Sure!', 'Learn new words', 'Repeat', 'Anything to repeat?', 'Later', 'Add words from subtitles'])
 def before_show_word(message):
     if message.text == 'Learn new words':
         bot.send_message(message.chat.id, "Ok. Do you know this one?", disable_notification=True,)
@@ -204,14 +221,16 @@ def before_show_word(message):
         answer_1 = types.KeyboardButton('Anything to repeat?')
         answer_2 = types.KeyboardButton('Learn new words')
         answer_3 = types.KeyboardButton('Add word')
-        markup.add(answer_1, answer_2, answer_3)
+        answer_4 = types.KeyboardButton('Add words from subtitles')
+        markup.add(answer_1, answer_2, answer_3, answer_4)
         bot.send_message(message.chat.id, 'As you wish=/', disable_notification=True, reply_markup=markup)
     elif message.text == '/home':
         markup = types.ReplyKeyboardMarkup(row_width=2)
         answer_1 = types.KeyboardButton('Anything to repeat?')
         answer_2 = types.KeyboardButton('Learn new words')
         answer_3 = types.KeyboardButton('Add word')
-        markup.add(answer_1, answer_2, answer_3)
+        answer_4 = types.KeyboardButton('Add words from subtitles')
+        markup.add(answer_1, answer_2, answer_3, answer_4)
         bot.send_message(message.chat.id, 'Hey, whats up?', disable_notification=True, reply_markup=markup)
 
 
@@ -280,7 +299,8 @@ def repeat_word(message):
         answer_1 = types.KeyboardButton('Anything to repeat?')
         answer_2 = types.KeyboardButton('Learn new words')
         answer_3 = types.KeyboardButton('Add word')
-        markup.add(answer_1, answer_2, answer_3)
+        answer_4 = types.KeyboardButton('Add words from subtitles')
+        markup.add(answer_1, answer_2, answer_3, answer_4)
         bot.delete_state(message.from_user.id, message.chat.id)
         bot.send_message(message.chat.id, "You've repeated all words. Try to memorize them and Come back later to repeat", disable_notification=True, reply_markup=markup)
 
@@ -311,7 +331,6 @@ def check_answer(message):
         bot.send_message(message.chat.id, 'Try again', disable_notification=True,)
 
 
-@bot.message_handler(commands=['add_word'])
 @bot.message_handler(text=['добавить слово', 'add word', 'Add word'])
 def start_dialog_add_word(message):
     bot.set_state(message.from_user.id, MyStates.waiting_for_word, message.chat.id)
@@ -324,7 +343,7 @@ def recieve_word(message):
     scraped_desc = None
     # check_spelling()
     # check_english_word()
-    word_id = db.find_word_in_db(user_word)
+    word_id = db.find_word_in_dict(user_word)
     with bot.retrieve_data(message.from_user.id, message.chat.id) as data:
         data['word_id'] = word_id
     user_id = db.get_user_id(message.from_user.id)
@@ -398,6 +417,50 @@ def add_user_word_desc(message):
     markup.add(answer_1, answer_2, answer_3)
     bot.delete_state(message.from_user.id, message.chat.id)
     bot.send_message(message.chat.id, "Saved it! Saved it! What's next?", disable_notification=True, reply_markup=markup)
+
+
+# bot.send_chat_action(cid, 'typing')  # show the bot "typing" (max. 5 secs)
+@bot.message_handler(text=['add subtitles', 'Add words from subtitles'])
+def start_dialog_add_subtitles(message):
+    bot.set_state(message.from_user.id, MyStates.waiting_for_subtitles, message.chat.id)
+    bot.send_message(message.chat.id, 'Hey, drop me your subtitles. It should be .srt or .txt file', disable_notification=True)
+
+
+@bot.message_handler(state=MyStates.waiting_for_subtitles, content_types=['document'])
+def handle_subtitles(message):
+    if message.document.file_name[-4:] in ['.srt', '.txt']:
+        bot.send_message(message.chat.id, "I've received your file. I need some time to process it. I'll message you when I'm done.",
+                         disable_notification=True)
+        download_file(message)
+        raw_text = se.read_file(message.document.file_unique_id)
+        delete_file(message)
+        bot.delete_state(message.from_user.id, message.chat.id)
+        text = se.clean_text(raw_text)
+        print(text)
+        lem_words = se.lemmatize_words(text)
+        print(lem_words)
+        cleaned_words = se.clean(lem_words)
+        print(cleaned_words)
+        count_cleaned_words = len(cleaned_words)
+        bot.send_chat_action(message.chat.id, 'typing')  # show the bot "typing" (max. 5 secs)
+        count_words_without_desc, count_words_added, count_words_already_known = se.add_to_user(message, cleaned_words)
+        bot.send_message(message.chat.id, "Ready! I've found {0} words in the text. You already know {1} words from this "
+                                          "text. But {2} are new for you or at least they are not in your learning "
+                                          "list, so i've added them.".format(count_cleaned_words, count_words_already_known, count_words_added),
+                         disable_notification=False,)
+        delete_file(message)
+    else:
+        bot.send_message(message.chat.id, "Sorry but I can't work with such file.(( I can only.srt or .txt file",
+                         disable_notification=True)
+
+
+
+
+# default handler for every other text
+# @bot.message_handler(func=lambda message: True, content_types=['text'])
+# def command_default(m):
+#     # this is the standard reply to a normal message
+#     bot.send_message(m.chat.id, "I don't understand \"" + m.text + "\"\nMaybe try the help page at /help")
 
 
 bot.add_custom_filter(custom_filters.StateFilter(bot))

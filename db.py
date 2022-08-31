@@ -82,11 +82,14 @@ def insert_word(word, translation, prt_of_speach, meaning, examp, user_id):
 
 
 def get_new_words_from_dictionary(user_id):
-    print(user_id)
-    sql = """SELECT d.id, d.word, d.translation FROM dictionary d
+    sql_1 = """select d.id, d.word, d.translation from user_dictionary ud 
+                left join dictionary d on ud.word_id = d.id 
+                where ud.status = 'to_learn' and ud.user_id = %s and d.stopwords = 0;"""
+
+    sql_2 = """SELECT d.id, d.word, d.translation FROM dictionary d
             LEFT JOIN (select word_id from user_dictionary where user_id = %s) ud
             ON d.id = ud.word_id
-            WHERE ud.word_id IS NULL and d.translation is not NULL;"""
+            WHERE ud.word_id IS NULL and d.translation is not NULL and stopwords = 0;"""
     conn = psycopg2.connect(
         database=config.database, user=config.user,
         password=config.password,
@@ -94,11 +97,17 @@ def get_new_words_from_dictionary(user_id):
     )
     try:
         cur = conn.cursor()
-        cur.execute(sql, (user_id,))
+        cur.execute(sql_1, (user_id,))
         ids_words = cur.fetchall()
-        cur.close()  # close communication with the database
-        conn.close()
-        return ids_words
+        if ids_words:
+            return ids_words
+        elif not ids_words:
+            cur = conn.cursor()
+            cur.execute(sql_2, (user_id,user_id))
+            ids_words = cur.fetchall()
+            cur.close()
+            conn.close()
+            return ids_words
     except (Exception, psycopg2.DatabaseError) as error:
         print(error)
     finally:
@@ -140,7 +149,7 @@ def get_repetition(user_id):
                 t.repetition = 6 and timediff > interval '7 day' or
                 t.repetition = 7 and timediff > interval '14 day' or
                 t.repetition = 8 and timediff > interval '1 month'
-                ) and t.status != 'already_know' and t.user_id = %s;"""
+                ) and t.status not in ('already_know', 'to_learn') and t.user_id = %s;"""
     conn = psycopg2.connect(
         database=config.database, user=config.user,
         password=config.password,
@@ -177,7 +186,7 @@ def get_notify_list():
                 t.repetition = 6 and timediff > interval '7 day' or
                 t.repetition = 7 and timediff > interval '14 day' or
                 t.repetition = 8 and timediff > interval '1 month'
-                ) and t.status != 'already_know'
+                ) and t.status NOT IN ('already_know', 'to_learn')
                 group by t.user_id, t.chat_id, t.notifications_count, t.last_notification_at;"""
     conn = psycopg2.connect(
         database=config.database, user=config.user,
@@ -247,11 +256,11 @@ def get_descr_from_dict(id):
             conn.close()
 
 
-def insert_word_user_dict(user_id, word_id, status, user_word_description):
-    sql_exists = """SELECT word_id FROM user_dictionary WHERE word_id=%s LIMIT 1;"""
-
-    sql_insert = """INSERT INTO user_dictionary(user_id, word_id, status, user_word_description)
-             VALUES(%s, %s, %s, %s);"""
+def upsert_word_user_dict(user_id, word_id, status, user_word_description=None):
+    sql_upsert = """INSERT INTO user_dictionary (user_id, word_id, status, user_word_description)
+                    VALUES(%s, %s, %s, %s) 
+                    ON CONFLICT (user_id, word_id) 
+                    DO UPDATE SET status = %s;"""
     conn = psycopg2.connect(
         database=config.database, user=config.user,
         password=config.password,
@@ -259,16 +268,10 @@ def insert_word_user_dict(user_id, word_id, status, user_word_description):
     )
     try:
         cur = conn.cursor()  # create a new cursor
-        cur.execute(sql_exists, (word_id,))
-        check_word_id = cur.fetchall()
-        if not check_word_id:
-            cur = conn.cursor()
-            cur.execute(sql_insert, (user_id, word_id, status, user_word_description))  # execute the INSERT statement
-            conn.commit()  # commit the changes to the database
-            cur.close()  # close communication with the database
-            conn.close()
-        else:
-            conn.close()
+        cur.execute(sql_upsert, (user_id, word_id, status, user_word_description, status))
+        conn.commit()  # commit the changes to the database
+        cur.close()  # close communication with the database
+        conn.close()
     except (Exception, psycopg2.DatabaseError) as error:
         print(error)
     finally:
@@ -335,8 +338,8 @@ def count_repetition(word_id, user_id, count):
             conn.close()
 
 
-def find_word_in_db(word):
-    sql = """SELECT id FROM dictionary where word = %s;"""
+def find_word_in_dict(word):
+    sql = """SELECT id FROM dictionary where word = %s and added_by_user_id IS NULL;"""
     conn = psycopg2.connect(
         database=config.database, user=config.user,
         password=config.password,
@@ -351,6 +354,30 @@ def find_word_in_db(word):
         if word_id:
             return word_id[0][0]
         elif not word_id:
+            return None
+    except (Exception, psycopg2.DatabaseError) as error:
+        print(error)
+    finally:
+        if conn is not None:
+            conn.close()
+
+
+def check_if_word_in_user_dict(word_id):
+    sql = """SELECT user_id FROM user_dictionary where word_id = %s;"""
+    conn = psycopg2.connect(
+        database=config.database, user=config.user,
+        password=config.password,
+        host=config.host, port=config.port, sslmode='require'
+    )
+    try:
+        cur = conn.cursor()
+        cur.execute(sql,(word_id,))
+        id = cur.fetchall()
+        cur.close()  # close communication with the database
+        conn.close()
+        if id:
+            return id[0][0]
+        elif not id:
             return None
     except (Exception, psycopg2.DatabaseError) as error:
         print(error)
