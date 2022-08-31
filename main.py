@@ -206,7 +206,7 @@ def start(message):
 
 
 @bot.message_handler(commands=['home'])
-@bot.message_handler(text=['Sure!', 'Learn new words', 'Repeat', 'Anything to repeat?', 'Later', 'Add words from subtitles'])
+@bot.message_handler(text=['Sure!', 'Learn new words', 'Repeat', 'Anything to repeat?', 'Later'])
 def before_show_word(message):
     if message.text == 'Learn new words':
         bot.send_message(message.chat.id, "Ok. Do you know this one?", disable_notification=True,)
@@ -388,7 +388,8 @@ def user_answer_dialog_add_word(message):
         answer_1 = types.KeyboardButton('Anything to repeat?')
         answer_2 = types.KeyboardButton('Learn new words')
         answer_3 = types.KeyboardButton('Add word')
-        markup.add(answer_1, answer_2, answer_3)
+        answer_4 = types.KeyboardButton('Add words from subtitles')
+        markup.add(answer_1, answer_2, answer_3, answer_4)
         bot.delete_state(message.from_user.id, message.chat.id)
         bot.send_message(message.chat.id, "Saved it! What's next?", disable_notification=True, reply_markup=markup)
     elif answer == 'Add another description':
@@ -414,7 +415,8 @@ def add_user_word_desc(message):
     answer_1 = types.KeyboardButton('Anything to repeat?')
     answer_2 = types.KeyboardButton('Learn new words')
     answer_3 = types.KeyboardButton('Add word')
-    markup.add(answer_1, answer_2, answer_3)
+    answer_4 = types.KeyboardButton('Add words from subtitles')
+    markup.add(answer_1, answer_2, answer_3, answer_4)
     bot.delete_state(message.from_user.id, message.chat.id)
     bot.send_message(message.chat.id, "Saved it! Saved it! What's next?", disable_notification=True, reply_markup=markup)
 
@@ -441,14 +443,25 @@ def handle_subtitles(message):
         count_cleaned_words = len(cleaned_words)
         bot.send_chat_action(message.chat.id, 'typing')  # show the bot "typing" (max. 5 secs)
         count_words_without_desc, count_words_added, count_words_already_known = se.add_to_user(message, cleaned_words)
+        markup = types.ReplyKeyboardMarkup(row_width=2)
+        answer_1 = types.KeyboardButton('Anything to repeat?')
+        answer_2 = types.KeyboardButton('Learn new words')
+        answer_3 = types.KeyboardButton('Add word')
+        answer_4 = types.KeyboardButton('Add words from subtitles')
+        markup.add(answer_1, answer_2, answer_3, answer_4)
         bot.send_message(message.chat.id, "Ready! I've found {0} words in the text. You already know {1} words from this "
                                           "text. But {2} are new for you or at least they are not in your learning "
                                           "list, so i've added them.".format(count_cleaned_words, count_words_already_known, count_words_added),
-                         disable_notification=False,)
-        delete_file(message)
+                         disable_notification=False, reply_markup=markup)
     else:
+        markup = types.ReplyKeyboardMarkup(row_width=2)
+        answer_1 = types.KeyboardButton('Anything to repeat?')
+        answer_2 = types.KeyboardButton('Learn new words')
+        answer_3 = types.KeyboardButton('Add word')
+        answer_4 = types.KeyboardButton('Add words from subtitles')
+        markup.add(answer_1, answer_2, answer_3, answer_4)
         bot.send_message(message.chat.id, "Sorry but I can't work with such file.(( I can only.srt or .txt file",
-                         disable_notification=True)
+                         disable_notification=True, reply_markup=markup)
 
 
 
