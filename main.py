@@ -464,13 +464,18 @@ def handle_subtitles(message):
                          disable_notification=True, reply_markup=markup)
 
 
-
-
 # default handler for every other text
-# @bot.message_handler(func=lambda message: True, content_types=['text'])
-# def command_default(m):
-#     # this is the standard reply to a normal message
-#     bot.send_message(m.chat.id, "I don't understand \"" + m.text + "\"\nMaybe try the help page at /help")
+@bot.message_handler(func=lambda message: True, content_types=['text'])
+def command_default(message):
+    # this is the standard reply to a normal message
+    markup = types.ReplyKeyboardMarkup(row_width=2)
+    answer_1 = types.KeyboardButton('Anything to repeat?')
+    answer_2 = types.KeyboardButton('Learn new words')
+    answer_3 = types.KeyboardButton('Add word')
+    answer_4 = types.KeyboardButton('Add words from subtitles')
+    markup.add(answer_1, answer_2, answer_3, answer_4)
+    bot.send_message(message.chat.id, "I don't understand. Maybe try one of the options on buttons",
+                     disable_notification=True, reply_markup=markup)
 
 
 bot.add_custom_filter(custom_filters.StateFilter(bot))
