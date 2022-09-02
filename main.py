@@ -154,7 +154,8 @@ def show_word_description(message, word_id=None, scraped_desc=None):
     markup = types.InlineKeyboardMarkup()
     markup.add(types.InlineKeyboardButton("More",
                                            url='https://dictionary.cambridge.org/dictionary/english-russian/{0}'.format(
-                                               full_description[0]))) # надо проверять доступно ли слово по этому адресу и скрывать кнопку если нет
+                                               full_description[0])))
+    # надо проверять доступно ли слово по этому адресу и скрывать кнопку если нет
     examp = format_string(full_description)
     if user_word_description:
         bot.send_message(message.chat.id,
@@ -175,6 +176,15 @@ def show_word_description(message, word_id=None, scraped_desc=None):
                                                                                     examp),
                          disable_notification=True, reply_markup=markup, parse_mode='markdown')
 
+
+def base_buttons():
+    markup = types.ReplyKeyboardMarkup(row_width=2)
+    answer_1 = types.KeyboardButton('Anything to repeat?')
+    answer_2 = types.KeyboardButton('Learn new words')
+    answer_3 = types.KeyboardButton('Add word')
+    answer_4 = types.KeyboardButton('Add words from subtitles')
+    markup.add(answer_1, answer_2, answer_3, answer_4)
+    return markup
 
 @bot.message_handler(commands=['start'])
 @bot.message_handler(text=['Hey!'])
@@ -197,12 +207,14 @@ def start(message):
             answer_1 = types.KeyboardButton('Learn new words')
             answer_2 = types.KeyboardButton('Add word')
             markup.add(answer_1, answer_2)
-            bot.send_message(message.chat.id, "You have nothing to repeat. Let's see some new words?", disable_notification=True, reply_markup=markup)
+            bot.send_message(message.chat.id, "You have nothing to repeat. Let's see some new words?",
+                             disable_notification=True, reply_markup=markup)
         else:
             markup = types.ReplyKeyboardMarkup(resize_keyboard=True, row_width=1)
             answer_1 = types.KeyboardButton('Repeat')
             markup.add(answer_1)
-            bot.send_message(message.chat.id, "You have {0} words to repeat. Let's repeat?".format(len(repetition)), disable_notification=True, reply_markup=markup)
+            bot.send_message(message.chat.id, "You have {0} words to repeat. Let's repeat?".format(len(repetition)),
+                             disable_notification=True, reply_markup=markup)
 
 
 @bot.message_handler(commands=['home'])
@@ -217,20 +229,10 @@ def before_show_word(message):
     elif message.text in ('Repeat', 'Anything to repeat?', 'Sure!'):
         repeat_word(message)
     elif message.text == 'Later':
-        markup = types.ReplyKeyboardMarkup(row_width=2)
-        answer_1 = types.KeyboardButton('Anything to repeat?')
-        answer_2 = types.KeyboardButton('Learn new words')
-        answer_3 = types.KeyboardButton('Add word')
-        answer_4 = types.KeyboardButton('Add words from subtitles')
-        markup.add(answer_1, answer_2, answer_3, answer_4)
+        markup = base_buttons()
         bot.send_message(message.chat.id, 'As you wish=/', disable_notification=True, reply_markup=markup)
     elif message.text == '/home':
-        markup = types.ReplyKeyboardMarkup(row_width=2)
-        answer_1 = types.KeyboardButton('Anything to repeat?')
-        answer_2 = types.KeyboardButton('Learn new words')
-        answer_3 = types.KeyboardButton('Add word')
-        answer_4 = types.KeyboardButton('Add words from subtitles')
-        markup.add(answer_1, answer_2, answer_3, answer_4)
+        markup = base_buttons()
         bot.send_message(message.chat.id, 'Hey, whats up?', disable_notification=True, reply_markup=markup)
 
 
@@ -238,11 +240,7 @@ def show_word(message):
     user_id = db.get_user_id(message.from_user.id)
     new_words = db.get_new_words_from_dictionary(user_id)
     id_lrn_tr = pickup_word(new_words)
-    markup = types.ReplyKeyboardMarkup(resize_keyboard=True, row_width=2)
-    answer_1 = types.KeyboardButton('Already know')
-    answer_2 = types.KeyboardButton('Learn')
-    answer_3 = types.KeyboardButton('Show translation')
-    markup.add(answer_1, answer_2, answer_3)
+    markup = base_buttons()
     with bot.retrieve_data(message.from_user.id, message.chat.id) as data:
         data['id_lrn_tr'] = id_lrn_tr
     bot.send_message(message.chat.id, id_lrn_tr[1], disable_notification=True, reply_markup=markup)
@@ -293,19 +291,14 @@ def repeat_word(message):
             data['id_lrn_tr'] = id_lrn_tr
         bot.send_message(message.chat.id, id_lrn_tr[2], disable_notification=True, reply_markup=markup)
     elif len(repetition) == 0:
-        markup = types.ReplyKeyboardMarkup(row_width=2)
-        answer_1 = types.KeyboardButton('Anything to repeat?')
-        answer_2 = types.KeyboardButton('Learn new words')
-        answer_3 = types.KeyboardButton('Add word')
-        answer_4 = types.KeyboardButton('Add words from subtitles')
-        markup.add(answer_1, answer_2, answer_3, answer_4)
+        markup = base_buttons()
         bot.delete_state(message.from_user.id, message.chat.id)
         db.get_statistics(message.from_user.id)
         bot.send_message(message.chat.id, "You've repeated all words.Try to memorize them and Come back later to repeat."
                                           "Here is your short statistics:"
                                           "Already known {0} words. Mastered {1} words. In progress {2} words."
                                           "{3} words in a queue to learn added by you. "
-                                          "4} words learnd from added by you list.".fromat(),
+                                          "4} words learnd from added by you list.",
                          disable_notification=True, reply_markup=markup)
 
 
@@ -372,11 +365,7 @@ def recieve_word(message):
         show_word_description(message, word_id=word_id, scraped_desc=scraped_desc)
         with bot.retrieve_data(message.from_user.id, message.chat.id) as data:
             data['word_id'] = word_id
-        markup = types.ReplyKeyboardMarkup(row_width=2)
-        answer_1 = types.KeyboardButton('Yes, please')
-        answer_2 = types.KeyboardButton('Nope')
-        answer_3 = types.KeyboardButton('Add another description')
-        markup.add(answer_1, answer_2, answer_3)
+        markup = base_buttons()
         bot.set_state(message.from_user.id, MyStates.user_answer_dialog_add_word, message.chat.id)
         bot.send_message(message.chat.id, "I've found it! Do you want to add it to your learning list?",
                          disable_notification=True, reply_markup=markup)
@@ -390,23 +379,14 @@ def user_answer_dialog_add_word(message):
         with bot.retrieve_data(message.from_user.id, message.chat.id) as data:
             word_id = data['word_id']
         save_word(user_id, word_id, 'repetition')
-        markup = types.ReplyKeyboardMarkup(row_width=2)
-        answer_1 = types.KeyboardButton('Anything to repeat?')
-        answer_2 = types.KeyboardButton('Learn new words')
-        answer_3 = types.KeyboardButton('Add word')
-        answer_4 = types.KeyboardButton('Add words from subtitles')
-        markup.add(answer_1, answer_2, answer_3, answer_4)
+        markup = base_buttons()
         bot.delete_state(message.from_user.id, message.chat.id)
         bot.send_message(message.chat.id, "Saved it! What's next?", disable_notification=True, reply_markup=markup)
     elif answer == 'Add another description':
         bot.send_message(message.chat.id, 'Write word description:', disable_notification=True)
         bot.set_state(message.from_user.id, MyStates.adding_user_word_desc, message.chat.id)
     elif answer == 'Nope':
-        markup = types.ReplyKeyboardMarkup(row_width=2)
-        answer_1 = types.KeyboardButton('Anything to repeat?')
-        answer_2 = types.KeyboardButton('Learn new words')
-        answer_3 = types.KeyboardButton('Add word')
-        markup.add(answer_1, answer_2, answer_3)
+        markup = base_buttons()
         bot.delete_state(message.from_user.id, message.chat.id)
         bot.send_message(message.chat.id, "Ok, what's next?", disable_notification=True, reply_markup=markup)
 
@@ -417,12 +397,7 @@ def add_user_word_desc(message):
     with bot.retrieve_data(message.from_user.id, message.chat.id) as data:
         word_id = data['word_id']
     save_word(user_id, word_id, 'repetition', user_word_description=message.text)
-    markup = types.ReplyKeyboardMarkup(row_width=2)
-    answer_1 = types.KeyboardButton('Anything to repeat?')
-    answer_2 = types.KeyboardButton('Learn new words')
-    answer_3 = types.KeyboardButton('Add word')
-    answer_4 = types.KeyboardButton('Add words from subtitles')
-    markup.add(answer_1, answer_2, answer_3, answer_4)
+    markup = base_buttons()
     bot.delete_state(message.from_user.id, message.chat.id)
     bot.send_message(message.chat.id, "Saved it! Saved it! What's next?", disable_notification=True, reply_markup=markup)
 
@@ -449,23 +424,13 @@ def handle_subtitles(message):
         count_cleaned_words = len(cleaned_words)
         bot.send_chat_action(message.chat.id, 'typing')  # show the bot "typing" (max. 5 secs)
         count_words_without_desc, count_words_added, count_words_already_known = se.add_to_user(message, cleaned_words)
-        markup = types.ReplyKeyboardMarkup(row_width=2)
-        answer_1 = types.KeyboardButton('Anything to repeat?')
-        answer_2 = types.KeyboardButton('Learn new words')
-        answer_3 = types.KeyboardButton('Add word')
-        answer_4 = types.KeyboardButton('Add words from subtitles')
-        markup.add(answer_1, answer_2, answer_3, answer_4)
+        markup = base_buttons()
         bot.send_message(message.chat.id, "Ready! I've found {0} words in the text. You already know {1} words from this "
                                           "text. But {2} are new for you or at least they are not in your learning "
                                           "list, so i've added them.".format(count_cleaned_words, count_words_already_known, count_words_added),
                          disable_notification=False, reply_markup=markup)
     else:
-        markup = types.ReplyKeyboardMarkup(row_width=2)
-        answer_1 = types.KeyboardButton('Anything to repeat?')
-        answer_2 = types.KeyboardButton('Learn new words')
-        answer_3 = types.KeyboardButton('Add word')
-        answer_4 = types.KeyboardButton('Add words from subtitles')
-        markup.add(answer_1, answer_2, answer_3, answer_4)
+        markup = base_buttons()
         bot.send_message(message.chat.id, "Sorry but I can't work with such file.(( I can only.srt or .txt file",
                          disable_notification=True, reply_markup=markup)
 
@@ -474,12 +439,7 @@ def handle_subtitles(message):
 @bot.message_handler(func=lambda message: True, content_types=['text'])
 def command_default(message):
     # this is the standard reply to a normal message
-    markup = types.ReplyKeyboardMarkup(row_width=2)
-    answer_1 = types.KeyboardButton('Anything to repeat?')
-    answer_2 = types.KeyboardButton('Learn new words')
-    answer_3 = types.KeyboardButton('Add word')
-    answer_4 = types.KeyboardButton('Add words from subtitles')
-    markup.add(answer_1, answer_2, answer_3, answer_4)
+    markup = base_buttons()
     bot.send_message(message.chat.id, "I don't understand. Maybe try one of the options on buttons",
                      disable_notification=True, reply_markup=markup)
 
