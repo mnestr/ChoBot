@@ -103,7 +103,7 @@ def get_new_words_from_dictionary(user_id):
             return ids_words
         elif not ids_words:
             cur = conn.cursor()
-            cur.execute(sql_2, (user_id,user_id))
+            cur.execute(sql_2, (user_id,))
             ids_words = cur.fetchall()
             cur.close()
             conn.close()
@@ -339,7 +339,7 @@ def count_repetition(word_id, user_id, count):
 
 
 def find_word_in_dict(word):
-    sql = """SELECT id FROM dictionary where word = %s and added_by_user_id IS NULL;"""
+    sql = """SELECT id FROM dictionary where word = %s and translation IS NOT NULL and meaning IS NOT NULL;"""
     conn = psycopg2.connect(
         database=config.database, user=config.user,
         password=config.password,
@@ -363,6 +363,30 @@ def find_word_in_dict(word):
 
 
 def check_if_word_in_user_dict(word_id):
+    sql = """SELECT user_id FROM user_dictionary where word_id = %s;"""
+    conn = psycopg2.connect(
+        database=config.database, user=config.user,
+        password=config.password,
+        host=config.host, port=config.port, sslmode='require'
+    )
+    try:
+        cur = conn.cursor()
+        cur.execute(sql,(word_id,))
+        id = cur.fetchall()
+        cur.close()  # close communication with the database
+        conn.close()
+        if id:
+            return id[0][0]
+        elif not id:
+            return None
+    except (Exception, psycopg2.DatabaseError) as error:
+        print(error)
+    finally:
+        if conn is not None:
+            conn.close()
+
+
+def get_statistics(user_id):
     sql = """SELECT user_id FROM user_dictionary where word_id = %s;"""
     conn = psycopg2.connect(
         database=config.database, user=config.user,

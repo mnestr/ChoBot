@@ -1,15 +1,15 @@
 import telebot
+from telebot import types
+from telebot import custom_filters
+from telebot.handler_backends import State, StatesGroup
+from telebot.storage import StateMemoryStorage
 import random
 import os
 import subtitles_extractor as se
-from telebot import types
-from telebot import custom_filters
 import db
 import config
 from bs4 import BeautifulSoup
 import requests
-from telebot.handler_backends import State, StatesGroup
-from telebot.storage import StateMemoryStorage
 
 
 state_storage = StateMemoryStorage()
@@ -154,7 +154,7 @@ def show_word_description(message, word_id=None, scraped_desc=None):
     markup = types.InlineKeyboardMarkup()
     markup.add(types.InlineKeyboardButton("More",
                                            url='https://dictionary.cambridge.org/dictionary/english-russian/{0}'.format(
-                                               full_description[0]))) #надо проверять доступно ли слово по этому адресу и скрывать кнопку если нет
+                                               full_description[0]))) # надо проверять доступно ли слово по этому адресу и скрывать кнопку если нет
     examp = format_string(full_description)
     if user_word_description:
         bot.send_message(message.chat.id,
@@ -235,8 +235,7 @@ def before_show_word(message):
 
 
 def show_word(message):
-    tg_id = message.from_user.id
-    user_id = db.get_user_id(tg_id)
+    user_id = db.get_user_id(message.from_user.id)
     new_words = db.get_new_words_from_dictionary(user_id)
     id_lrn_tr = pickup_word(new_words)
     markup = types.ReplyKeyboardMarkup(resize_keyboard=True, row_width=2)
@@ -283,8 +282,7 @@ def sort_word(message):
 
 
 def repeat_word(message):
-    tg_id = message.from_user.id
-    user_id = db.get_user_id(tg_id)
+    user_id = db.get_user_id(message.from_user.id)
     repetition = db.get_repetition(user_id)
     if len(repetition) > 0:
         id_lrn_tr = pickup_word(repetition)
@@ -302,7 +300,13 @@ def repeat_word(message):
         answer_4 = types.KeyboardButton('Add words from subtitles')
         markup.add(answer_1, answer_2, answer_3, answer_4)
         bot.delete_state(message.from_user.id, message.chat.id)
-        bot.send_message(message.chat.id, "You've repeated all words. Try to memorize them and Come back later to repeat", disable_notification=True, reply_markup=markup)
+        db.get_statistics(message.from_user.id)
+        bot.send_message(message.chat.id, "You've repeated all words.Try to memorize them and Come back later to repeat."
+                                          "Here is your short statistics:"
+                                          "Already known {0} words. Mastered {1} words. In progress {2} words."
+                                          "{3} words in a queue to learn added by you. "
+                                          "4} words learnd from added by you list.".fromat(),
+                         disable_notification=True, reply_markup=markup)
 
 
 @bot.message_handler(state=MyStates.repetition)
@@ -344,8 +348,6 @@ def recieve_word(message):
     # check_spelling()
     # check_english_word()
     word_id = db.find_word_in_dict(user_word)
-    with bot.retrieve_data(message.from_user.id, message.chat.id) as data:
-        data['word_id'] = word_id
     user_id = db.get_user_id(message.from_user.id)
     if not word_id:
         scraped_desc = scrap_word(user_word)
@@ -354,7 +356,9 @@ def recieve_word(message):
             bot.send_message(message.chat.id, "Can't find any description. Please add your own:", disable_notification=True,)
             bot.set_state(message.from_user.id, MyStates.adding_user_word_desc, message.chat.id)
         elif scraped_desc:
-            db.insert_word(scraped_desc[0], scraped_desc[1], scraped_desc[2], scraped_desc[3], scraped_desc[4], user_id)
+            word_id = db.insert_word(scraped_desc[0], scraped_desc[1], scraped_desc[2], scraped_desc[3], scraped_desc[4], user_id)
+            with bot.retrieve_data(message.from_user.id, message.chat.id) as data:
+                data['word_id'] = word_id
             show_word_description(message, word_id=word_id, scraped_desc=scraped_desc)
             markup = types.ReplyKeyboardMarkup(row_width=2)
             answer_1 = types.KeyboardButton('Yes, please')
@@ -366,6 +370,8 @@ def recieve_word(message):
                              disable_notification=True, reply_markup=markup)
     elif word_id:
         show_word_description(message, word_id=word_id, scraped_desc=scraped_desc)
+        with bot.retrieve_data(message.from_user.id, message.chat.id) as data:
+            data['word_id'] = word_id
         markup = types.ReplyKeyboardMarkup(row_width=2)
         answer_1 = types.KeyboardButton('Yes, please')
         answer_2 = types.KeyboardButton('Nope')
