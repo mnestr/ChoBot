@@ -294,12 +294,12 @@ def repeat_word(message):
         markup = base_buttons()
         bot.delete_state(message.from_user.id, message.chat.id)
         db.get_statistics(message.from_user.id)
-        bot.send_message(message.chat.id, "You've repeated all words.Try to memorize them and Come back later to repeat."
-                                          "Here is your short statistics:"
-                                          "Already known {0} words. Mastered {1} words. In progress {2} words."
-                                          "{3} words in a queue to learn added by you. "
-                                          "4} words learnd from added by you list.",
-                         disable_notification=True, reply_markup=markup)
+        bot.send_message(message.chat.id, "You've repeated all words. Try to memorize them and Come back later to "
+                                          "repeat.\nHere is your short statistics:\n"
+                                          "Already known *{0}* words. Mastered *{1}* words. In progress *{2}* words."
+                                          "*{3}* words in a queue to learn added by you. "
+                                          "*{4}* words learned from added by you list.",
+                         disable_notification=True, reply_markup=markup, parse_mode='markdown')
 
 
 @bot.message_handler(state=MyStates.repetition)

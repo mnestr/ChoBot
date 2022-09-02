@@ -58,12 +58,12 @@ def add_to_user(message, words):
                 words_without_desc.append(word)
             elif scraped_desc:
                 word_id = db.insert_word(scraped_desc[0], scraped_desc[1], scraped_desc[2], scraped_desc[3], scraped_desc[4], user_id)
-                db.upsert_word_user_dict(user_id, word_id, 'to_learn')
+                db.upsert_word_user_dict(user_id, word_id, 'to_learn', added_by_user=1)
                 words_added.append(word)
         elif word_id:
             in_user_dict = db.check_if_word_in_user_dict(word_id)
             if not in_user_dict:
-                db.upsert_word_user_dict(user_id, word_id, 'to_learn')
+                db.upsert_word_user_dict(user_id, word_id, 'to_learn', added_by_user=1)
                 words_added.append(word)
             elif in_user_dict:
                 words_already_known.append(word)

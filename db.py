@@ -256,9 +256,9 @@ def get_descr_from_dict(id):
             conn.close()
 
 
-def upsert_word_user_dict(user_id, word_id, status, user_word_description=None):
+def upsert_word_user_dict(user_id, word_id, status, user_word_description=None, added_by_user=0):
     sql_upsert = """INSERT INTO user_dictionary (user_id, word_id, status, user_word_description)
-                    VALUES(%s, %s, %s, %s) 
+                    VALUES(%s, %s, %s, %s, %s) 
                     ON CONFLICT (user_id, word_id) 
                     DO UPDATE SET status = %s;"""
     conn = psycopg2.connect(
@@ -268,7 +268,7 @@ def upsert_word_user_dict(user_id, word_id, status, user_word_description=None):
     )
     try:
         cur = conn.cursor()  # create a new cursor
-        cur.execute(sql_upsert, (user_id, word_id, status, user_word_description, status))
+        cur.execute(sql_upsert, (user_id, word_id, status, user_word_description, added_by_user, status))
         conn.commit()  # commit the changes to the database
         cur.close()  # close communication with the database
         conn.close()
@@ -387,7 +387,11 @@ def check_if_word_in_user_dict(word_id):
 
 
 def get_statistics(user_id):
-    sql = """SELECT user_id FROM user_dictionary where word_id = %s;"""
+    sql_already_known = """SELECT count(word_id) FROM user_dictionary where user_id = %s and status = 'already_know';"""
+    sql_mastered = """SELECT count(word_id) FROM user_dictionary 
+                        where user_id = %s and status = 'repetition' and repetition = 8;"""
+    sql_in_progress = """SELECT count(word_id) FROM user_dictionary where user_id = %s and status = 'repetition';"""
+    sql_to_learn = """SELECT count(word_id) FROM user_dictionary where user_id = %s and status = 'to_learn';"""
     conn = psycopg2.connect(
         database=config.database, user=config.user,
         password=config.password,
@@ -395,8 +399,8 @@ def get_statistics(user_id):
     )
     try:
         cur = conn.cursor()
-        cur.execute(sql,(word_id,))
-        id = cur.fetchall()
+        cur.execute(sql_already_known,(user_id,))
+        already_known = cur.fetchall()
         cur.close()  # close communication with the database
         conn.close()
         if id:
