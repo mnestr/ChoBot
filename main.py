@@ -222,7 +222,7 @@ def start(message):
 
 
 @bot.message_handler(commands=['home'])
-@bot.message_handler(text=['Sure!', 'Learn new words', 'Repeat', 'Anything to repeat?', 'Later'])
+@bot.message_handler(text=['Sure!', 'Learn new words', 'Anything to repeat?', 'Later'])
 def main_dialog(message):
     if message.text == 'Learn new words':
         bot.send_chat_action(message.chat.id, 'typing')
@@ -231,7 +231,7 @@ def main_dialog(message):
         with bot.retrieve_data(message.from_user.id, message.chat.id) as data:
             data['sorted_words_count'] = 0
         show_word(message)
-    elif message.text in ('Repeat', 'Anything to repeat?', 'Sure!'):
+    elif message.text in ('Anything to repeat?', 'Sure!'):
         bot.send_chat_action(message.chat.id, 'typing')
         user_id = db.get_user_id(message.from_user.id)
         repetition = db.get_repetition(user_id)
