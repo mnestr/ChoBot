@@ -18,6 +18,7 @@ bot = telebot.TeleBot(config.token, state_storage=state_storage, parse_mode=None
 
 class MyStates(StatesGroup):
     sort_words = State()
+    before_repeat_word = State()
     repetition = State()
     waiting_for_word = State()
     adding_user_word_desc = State()
@@ -186,6 +187,7 @@ def base_buttons():
     markup.add(answer_1, answer_2, answer_3, answer_4)
     return markup
 
+
 @bot.message_handler(commands=['start'])
 @bot.message_handler(text=['Hey!'])
 def start(message):
@@ -210,24 +212,36 @@ def start(message):
             bot.send_message(message.chat.id, "You have nothing to repeat. Let's see some new words?",
                              disable_notification=True, reply_markup=markup)
         else:
-            markup = types.ReplyKeyboardMarkup(resize_keyboard=True, row_width=1)
+            markup = types.ReplyKeyboardMarkup(row_width=2)
             answer_1 = types.KeyboardButton('Repeat')
-            markup.add(answer_1)
+            answer_2 = types.KeyboardButton('Later')
+            markup.add(answer_1, answer_2)
+            bot.set_state(message.from_user.id, MyStates.before_repeat_word, message.chat.id)
             bot.send_message(message.chat.id, "You have {0} words to repeat. Let's repeat?".format(len(repetition)),
                              disable_notification=True, reply_markup=markup)
 
 
 @bot.message_handler(commands=['home'])
 @bot.message_handler(text=['Sure!', 'Learn new words', 'Repeat', 'Anything to repeat?', 'Later'])
-def before_show_word(message):
+def main_dialog(message):
     if message.text == 'Learn new words':
+        bot.send_chat_action(message.chat.id, 'typing')
         bot.send_message(message.chat.id, "Ok. Do you know this one?", disable_notification=True,)
         bot.set_state(message.from_user.id, MyStates.sort_words, message.chat.id)
         with bot.retrieve_data(message.from_user.id, message.chat.id) as data:
             data['sorted_words_count'] = 0
         show_word(message)
     elif message.text in ('Repeat', 'Anything to repeat?', 'Sure!'):
-        repeat_word(message)
+        bot.send_chat_action(message.chat.id, 'typing')
+        user_id = db.get_user_id(message.from_user.id)
+        repetition = db.get_repetition(user_id)
+        markup = types.ReplyKeyboardMarkup(row_width=2)
+        answer_1 = types.KeyboardButton('Repeat')
+        answer_2 = types.KeyboardButton('Later')
+        markup.add(answer_1, answer_2)
+        bot.set_state(message.from_user.id, MyStates.before_repeat_word, message.chat.id)
+        bot.send_message(message.chat.id, "You have {0} words to repeat. Wanna start?".format(len(repetition)),
+                         reply_markup=markup)
     elif message.text == 'Later':
         markup = base_buttons()
         bot.send_message(message.chat.id, 'As you wish=/', disable_notification=True, reply_markup=markup)
@@ -277,6 +291,16 @@ def sort_word(message):
         markup.add(answer_1, answer_2)
         show_word_description(message, word_id=data['id_lrn_tr'][0])
         bot.send_message(message.chat.id, "So, do you know it?", disable_notification=True, reply_markup=markup)
+
+
+@bot.message_handler(state=MyStates.before_repeat_word)
+def before_repeat_word(message):
+    if message.text == "Repeat":
+        repeat_word(message)
+    elif message.text == 'Later':
+        markup = base_buttons()
+        bot.delete_state(message.from_user.id, message.chat.id)
+        bot.send_message(message.chat.id, 'As you wish=/', disable_notification=True, reply_markup=markup)
 
 
 def repeat_word(message):
