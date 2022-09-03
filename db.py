@@ -11,8 +11,7 @@ def db_insert_user(tg_id, chat_id, first_name, last_name, language_code, user_na
     conn = psycopg2.connect(
         database=config.database, user=config.user,
         password=config.password,
-        host=config.host, port=config.port, sslmode='require'
-    )
+        host=config.host, port=config.port, sslmode='require')
     try:
         cur = conn.cursor()  # create a new cursor
         cur.execute(sql_exists, (tg_id,))
@@ -38,9 +37,7 @@ def get_user_id(tg_id):
     conn = psycopg2.connect(
         database=config.database, user=config.user,
         password=config.password,
-        host=config.host, port=config.port, sslmode='require'
-    )
-
+        host=config.host, port=config.port, sslmode='require')
     try:
         cur = conn.cursor()
         cur.execute(sql,(tg_id,))
@@ -64,8 +61,7 @@ def insert_word(word, translation, prt_of_speach, meaning, examp, user_id):
     conn = psycopg2.connect(
         database="d4507rcebm77pe", user='yvobcmcbgkgweo',
         password='e88ed490b84655daef799b73606fadeb8bee8f41bf7f4b48654eb213c33fa71b',
-        host='ec2-54-155-110-181.eu-west-1.compute.amazonaws.com', port='5432', sslmode='require'
-    )
+        host='ec2-54-155-110-181.eu-west-1.compute.amazonaws.com', port='5432', sslmode='require')
     try:
         cur = conn.cursor()  # create a new cursor
         cur.execute(sql_insert, (word, translation, prt_of_speach, meaning, examp, user_id))
@@ -93,8 +89,7 @@ def get_new_words_from_dictionary(user_id):
     conn = psycopg2.connect(
         database=config.database, user=config.user,
         password=config.password,
-        host=config.host, port=config.port, sslmode='require'
-    )
+        host=config.host, port=config.port, sslmode='require')
     try:
         cur = conn.cursor()
         cur.execute(sql_1, (user_id,))
@@ -120,8 +115,7 @@ def get_words_from_dictionary():
     conn = psycopg2.connect(
         database=config.database, user=config.user,
         password=config.password,
-        host=config.host, port=config.port, sslmode='require'
-    )
+        host=config.host, port=config.port, sslmode='require')
     try:
         cur = conn.cursor()
         cur.execute(sql)
@@ -153,8 +147,7 @@ def get_repetition(user_id):
     conn = psycopg2.connect(
         database=config.database, user=config.user,
         password=config.password,
-        host=config.host, port=config.port, sslmode='require'
-    )
+        host=config.host, port=config.port, sslmode='require')
     try:
         cur = conn.cursor()
         cur.execute(sql,(user_id,))
@@ -191,8 +184,7 @@ def get_notify_list():
     conn = psycopg2.connect(
         database=config.database, user=config.user,
         password=config.password,
-        host=config.host, port=config.port, sslmode='require'
-    )
+        host=config.host, port=config.port, sslmode='require')
     try:
         cur = conn.cursor()
         cur.execute(sql)
@@ -215,8 +207,7 @@ def count_notification(user_id):
     conn = psycopg2.connect(
         database=config.database, user=config.user,
         password=config.password,
-        host=config.host, port=config.port, sslmode='require'
-    )
+        host=config.host, port=config.port, sslmode='require')
     try:
         cur = conn.cursor()
         cur.execute(sql,(user_id,))
@@ -240,8 +231,7 @@ def get_descr_from_dict(id):
     conn = psycopg2.connect(
         database=config.database, user=config.user,
         password=config.password,
-        host=config.host, port=config.port, sslmode='require'
-    )
+        host=config.host, port=config.port, sslmode='require')
     try:
         cur = conn.cursor()
         cur.execute(sql,(id,))
@@ -264,8 +254,7 @@ def upsert_word_user_dict(user_id, word_id, status, user_word_description=None, 
     conn = psycopg2.connect(
         database=config.database, user=config.user,
         password=config.password,
-        host=config.host, port=config.port, sslmode='require'
-    )
+        host=config.host, port=config.port, sslmode='require')
     try:
         cur = conn.cursor()  # create a new cursor
         cur.execute(sql_upsert, (user_id, word_id, status, user_word_description, added_by_user, status))
@@ -284,8 +273,7 @@ def get_user_descr(word_id):
     conn = psycopg2.connect(
         database=config.database, user=config.user,
         password=config.password,
-        host=config.host, port=config.port, sslmode='require'
-    )
+        host=config.host, port=config.port, sslmode='require')
     try:
         cur = conn.cursor()
         cur.execute(sql,(word_id,))
@@ -305,11 +293,13 @@ def count_repetition(word_id, user_id, count):
     sql_update = """UPDATE user_dictionary
                     SET repetition = %s
                     WHERE user_id = %s and word_id = %s;"""
+    sql_update_status = """UPDATE user_dictionary
+                    SET status = %s
+                    WHERE user_id = %s and word_id = %s;"""
     conn = psycopg2.connect(
         database=config.database, user=config.user,
         password=config.password,
-        host=config.host, port=config.port, sslmode='require'
-    )
+        host=config.host, port=config.port, sslmode='require')
     try:
         cur = conn.cursor()
         cur.execute(sql,(word_id, user_id,))
@@ -319,7 +309,13 @@ def count_repetition(word_id, user_id, count):
             if n < 8:
                 n += 1
                 cur = conn.cursor()
-                cur.execute(sql_update,(n, user_id, word_id))
+                cur.execute(sql_update, (n, user_id, word_id))
+                conn.commit()
+                cur.close()  # close communication with the database
+                conn.close()
+            elif n >= 8:
+                cur = conn.cursor()
+                cur.execute(sql_update_status, ('mastered', user_id, word_id))
                 conn.commit()
                 cur.close()  # close communication with the database
                 conn.close()
@@ -343,8 +339,7 @@ def find_word_in_dict(word):
     conn = psycopg2.connect(
         database=config.database, user=config.user,
         password=config.password,
-        host=config.host, port=config.port, sslmode='require'
-    )
+        host=config.host, port=config.port, sslmode='require')
     try:
         cur = conn.cursor()
         cur.execute(sql,(word,))
@@ -367,8 +362,7 @@ def check_if_word_in_user_dict(word_id):
     conn = psycopg2.connect(
         database=config.database, user=config.user,
         password=config.password,
-        host=config.host, port=config.port, sslmode='require'
-    )
+        host=config.host, port=config.port, sslmode='require')
     try:
         cur = conn.cursor()
         cur.execute(sql,(word_id,))
@@ -387,26 +381,24 @@ def check_if_word_in_user_dict(word_id):
 
 
 def get_statistics(user_id):
-    sql_already_known = """SELECT count(word_id) FROM user_dictionary where user_id = %s and status = 'already_know';"""
-    sql_mastered = """SELECT count(word_id) FROM user_dictionary 
-                        where user_id = %s and status = 'repetition' and repetition = 8;"""
-    sql_in_progress = """SELECT count(word_id) FROM user_dictionary where user_id = %s and status = 'repetition';"""
-    sql_to_learn = """SELECT count(word_id) FROM user_dictionary where user_id = %s and status = 'to_learn';"""
+    sql = """SELECT status, count(word_id) FROM user_dictionary where user_id = 46 group by status;"""
     conn = psycopg2.connect(
         database=config.database, user=config.user,
         password=config.password,
-        host=config.host, port=config.port, sslmode='require'
-    )
+        host=config.host, port=config.port, sslmode='require')
     try:
         cur = conn.cursor()
-        cur.execute(sql_already_known,(user_id,))
-        already_known = cur.fetchall()
+        cur.execute(sql, (user_id,))
+        response = cur.fetchall()
         cur.close()  # close communication with the database
         conn.close()
-        if id:
-            return id[0][0]
-        elif not id:
-            return None
+        statistics = {"already_know": 0, 'to_learn': 0, 'mastered': 0, 'repetition': 0}
+        if response:
+            for i in response:
+                statistics[i[0]] = i[1]
+            return statistics
+        elif not response:
+            return statistics
     except (Exception, psycopg2.DatabaseError) as error:
         print(error)
     finally:
