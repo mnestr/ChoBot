@@ -269,7 +269,8 @@ def sort_word(message):
         answer_2 = types.KeyboardButton('Later')
         markup.add(answer_1, answer_2)
         bot.delete_state(message.from_user.id, message.chat.id)
-        bot.send_message(message.chat.id, 'You have 3 new words to learn. Wanna start?', disable_notification=True, reply_markup=markup)
+        bot.send_message(message.chat.id, 'You have 3 new words to learn. Wanna start?', disable_notification=True,
+                         reply_markup=markup)
     elif answer == 'Already know':
         save_word(user_id, data['id_lrn_tr'][0], 'already_know')
         bot.send_message(message.chat.id, 'Lucky you! Here is another word:', disable_notification=True,)
@@ -295,7 +296,8 @@ def repeat_word(message):
     user_id = db.get_user_id(message.from_user.id)
     repetition = db.get_repetition(user_id)
     if len(repetition) > 0:
-        bot.send_message(message.chat.id, "You have {0} words to repeat. Do you remember:".format(len(repetition)))
+        bot.send_message(message.chat.id, "You have {0} words to repeat. Do you remember:".format(len(repetition)),
+                         disable_notification=True,)
         id_lrn_tr = pickup_word(repetition)
         markup = pickup_answers_on_buttons(id_lrn_tr)
         bot.set_state(message.from_user.id, MyStates.repetition, message.chat.id)
@@ -330,11 +332,11 @@ def check_answer(message):
             show_word_description(message, word_id=data['id_lrn_tr'][0])
             repeat_word(message)
         else:
+            bot.send_chat_action(message.chat.id, 'typing')
             db.count_repetition(data['id_lrn_tr'][0], user_id, "+1")
             with bot.retrieve_data(message.from_user.id, message.chat.id) as rt_data:
                 rt_data['level_down_once'] = 0
             bot.send_message(message.chat.id, 'Correct!', disable_notification=True)
-            bot.send_chat_action(message.chat.id, 'typing')
             show_word_description(message, word_id=data['id_lrn_tr'][0])
             repeat_word(message)
     else:
