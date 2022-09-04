@@ -264,7 +264,7 @@ def sort_word(message):
         data = rt_data
     if answer == 'Learn' and data['sorted_words_count'] > 1:
         save_word(user_id, data['id_lrn_tr'][0], 'repetition')
-        markup = types.ReplyKeyboardMarkup(resize_keyboard=True, row_width=2)
+        markup = types.ReplyKeyboardMarkup(row_width=2)
         answer_1 = types.KeyboardButton('Sure!')
         answer_2 = types.KeyboardButton('Later')
         markup.add(answer_1, answer_2)
@@ -282,7 +282,7 @@ def sort_word(message):
         show_word(message)
     elif answer == 'Show translation':
         bot.send_chat_action(message.chat.id, 'typing')  # show the bot "typing" (max. 5 secs)
-        markup = types.ReplyKeyboardMarkup(resize_keyboard=True, row_width=2)
+        markup = types.ReplyKeyboardMarkup(row_width=2)
         answer_1 = types.KeyboardButton('Already know')
         answer_2 = types.KeyboardButton('Learn')
         markup.add(answer_1, answer_2)
@@ -326,6 +326,7 @@ def check_answer(message):
             with bot.retrieve_data(message.from_user.id, message.chat.id) as rt_data:
                 rt_data['level_down_once'] = 0
             bot.send_message(message.chat.id, 'Correct!', disable_notification=True)
+            bot.send_chat_action(message.chat.id, 'typing')
             show_word_description(message, word_id=data['id_lrn_tr'][0])
             repeat_word(message)
         else:
@@ -333,6 +334,7 @@ def check_answer(message):
             with bot.retrieve_data(message.from_user.id, message.chat.id) as rt_data:
                 rt_data['level_down_once'] = 0
             bot.send_message(message.chat.id, 'Correct!', disable_notification=True)
+            bot.send_chat_action(message.chat.id, 'typing')
             show_word_description(message, word_id=data['id_lrn_tr'][0])
             repeat_word(message)
     else:
