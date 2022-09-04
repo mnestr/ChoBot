@@ -153,12 +153,12 @@ def show_word_description(message, word_id=None, scraped_desc=None):
         full_description = scraped_desc
     user_word_description = db.get_user_descr(word_id)
     markup = types.InlineKeyboardMarkup()
-    markup.add(types.InlineKeyboardButton("More",
+    markup.add(types.InlineKeyboardButton("Check Cambridge definition",
                                            url='https://dictionary.cambridge.org/dictionary/english-russian/{0}'.format(
                                                full_description[0])))
     # надо проверять доступно ли слово по этому адресу и скрывать кнопку если нет
     examp = format_string(full_description)
-    if user_word_description:
+    if user_word_description[0]:
         bot.send_message(message.chat.id,
                          "  *{0}* (_{1}_) - {2} *//* {3}\n\n_Additional meaning:_{5}\n\n_Example:_\n{4}".format(
                                                                                     full_description[0],
@@ -326,12 +326,15 @@ def check_answer(message):
             with bot.retrieve_data(message.from_user.id, message.chat.id) as rt_data:
                 rt_data['level_down_once'] = 0
             bot.send_message(message.chat.id, 'Correct!', disable_notification=True)
+            show_word_description(message, word_id=data['id_lrn_tr'][0])
             repeat_word(message)
         else:
             db.count_repetition(data['id_lrn_tr'][0], user_id, "+1")
             with bot.retrieve_data(message.from_user.id, message.chat.id) as rt_data:
                 rt_data['level_down_once'] = 0
+            show_word_description(message, word_id=data['id_lrn_tr'][0])
             bot.send_message(message.chat.id, 'Correct!', disable_notification=True)
+            show_word_description(message, word_id=data['id_lrn_tr'][0])
             repeat_word(message)
     else:
         if data['level_down_once'] == 0:
