@@ -232,16 +232,7 @@ def main_dialog(message):
             data['sorted_words_count'] = 0
         show_word(message)
     elif message.text in ('Anything to repeat?', 'Sure!'):
-        bot.send_chat_action(message.chat.id, 'typing')
-        user_id = db.get_user_id(message.from_user.id)
-        repetition = db.get_repetition(user_id)
-        markup = types.ReplyKeyboardMarkup(row_width=2)
-        answer_1 = types.KeyboardButton('Repeat')
-        answer_2 = types.KeyboardButton('Later')
-        markup.add(answer_1, answer_2)
-        bot.set_state(message.from_user.id, MyStates.before_repeat_word, message.chat.id)
-        bot.send_message(message.chat.id, "You have {0} words to repeat. Wanna start?".format(len(repetition)),
-                         reply_markup=markup)
+        repeat_word(message)
     elif message.text == 'Later':
         markup = base_buttons()
         bot.send_message(message.chat.id, 'As you wish=/', disable_notification=True, reply_markup=markup)
@@ -254,7 +245,11 @@ def show_word(message):
     user_id = db.get_user_id(message.from_user.id)
     new_words = db.get_new_words_from_dictionary(user_id)
     id_lrn_tr = pickup_word(new_words)
-    markup = base_buttons()
+    markup = types.ReplyKeyboardMarkup(row_width=2)
+    answer_1 = types.KeyboardButton('Already know')
+    answer_2 = types.KeyboardButton('Learn')
+    answer_3 = types.KeyboardButton('Show translation')
+    markup.add(answer_1, answer_2, answer_3)
     with bot.retrieve_data(message.from_user.id, message.chat.id) as data:
         data['id_lrn_tr'] = id_lrn_tr
     bot.send_message(message.chat.id, id_lrn_tr[1], disable_notification=True, reply_markup=markup)
@@ -293,20 +288,12 @@ def sort_word(message):
         bot.send_message(message.chat.id, "So, do you know it?", disable_notification=True, reply_markup=markup)
 
 
-@bot.message_handler(state=MyStates.before_repeat_word)
-def before_repeat_word(message):
-    if message.text == "Repeat":
-        repeat_word(message)
-    elif message.text == 'Later':
-        markup = base_buttons()
-        bot.delete_state(message.from_user.id, message.chat.id)
-        bot.send_message(message.chat.id, 'As you wish=/', disable_notification=True, reply_markup=markup)
-
-
 def repeat_word(message):
+    bot.send_chat_action(message.chat.id, 'typing')
     user_id = db.get_user_id(message.from_user.id)
     repetition = db.get_repetition(user_id)
     if len(repetition) > 0:
+        bot.send_message(message.chat.id, "You have {0} words to repeat. Do you remember:".format(len(repetition)))
         id_lrn_tr = pickup_word(repetition)
         markup = pickup_answers_on_buttons(id_lrn_tr)
         bot.set_state(message.from_user.id, MyStates.repetition, message.chat.id)
@@ -360,7 +347,7 @@ def start_dialog_add_word(message):
 
 @bot.message_handler(state=MyStates.waiting_for_word)
 def recieve_word(message):
-    user_word = message.text
+    user_word = message.text.lower()
     scraped_desc = None
     # check_spelling()
     # check_english_word()
@@ -409,7 +396,7 @@ def user_answer_dialog_add_word(message):
     elif answer == 'Add another description':
         bot.send_message(message.chat.id, 'Write word description:', disable_notification=True)
         bot.set_state(message.from_user.id, MyStates.adding_user_word_desc, message.chat.id)
-    elif answer == 'Nope':
+    elif answer in ('Nope', 'no'):
         markup = base_buttons()
         bot.delete_state(message.from_user.id, message.chat.id)
         bot.send_message(message.chat.id, "Ok, what's next?", disable_notification=True, reply_markup=markup)

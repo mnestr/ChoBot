@@ -56,20 +56,28 @@ def get_user_id(tg_id):
 
 
 def insert_word(word, translation, prt_of_speach, meaning, examp, user_id):
+    sql_check = """SELECT id FROM dictionary WHERE  word = %s and translation = %s and part_of_speach = %s"""
     sql_insert = """INSERT INTO dictionary(word, translation, part_of_speach, meaning, example, added_by_user_id)
-             VALUES(%s, %s, %s, %s, %s, %s) RETURNING id;"""
+             VALUES(%s, %s, %s, %s, %s, %s) 
+             RETURNING id
+             ;"""
     conn = psycopg2.connect(
         database="d4507rcebm77pe", user='yvobcmcbgkgweo',
         password='e88ed490b84655daef799b73606fadeb8bee8f41bf7f4b48654eb213c33fa71b',
         host='ec2-54-155-110-181.eu-west-1.compute.amazonaws.com', port='5432', sslmode='require')
     try:
         cur = conn.cursor()  # create a new cursor
-        cur.execute(sql_insert, (word, translation, prt_of_speach, meaning, examp, user_id))
-        conn.commit()  # commit the changes to the database
+        cur.execute(sql_check, (word, translation, prt_of_speach))
         word_id = cur.fetchone()
-        cur.close()  # close communication with the database
-        conn.close()
-        return word_id[0]
+        if word_id:
+            return word_id[0]
+        elif not word_id:
+            cur.execute(sql_insert, (word, translation, prt_of_speach, meaning, examp, user_id))
+            conn.commit()  # commit the changes to the database
+            word_id = cur.fetchone()
+            cur.close()  # close communication with the database
+            conn.close()
+            return word_id[0]
     except (Exception, psycopg2.DatabaseError) as error:
         print(error)
     finally:
@@ -247,17 +255,17 @@ def get_descr_from_dict(id):
 
 
 def upsert_word_user_dict(user_id, word_id, status, user_word_description=None, added_by_user=0):
-    sql_upsert = """INSERT INTO user_dictionary (user_id, word_id, status, user_word_description)
+    sql_upsert = """INSERT INTO user_dictionary (user_id, word_id, status, user_word_description, added_by_user)
                     VALUES(%s, %s, %s, %s, %s) 
                     ON CONFLICT (user_id, word_id) 
-                    DO UPDATE SET status = %s;"""
+                    DO UPDATE SET status = EXCLUDED.status;"""
     conn = psycopg2.connect(
         database=config.database, user=config.user,
         password=config.password,
         host=config.host, port=config.port, sslmode='require')
     try:
         cur = conn.cursor()  # create a new cursor
-        cur.execute(sql_upsert, (user_id, word_id, status, user_word_description, added_by_user, status))
+        cur.execute(sql_upsert, (user_id, word_id, status, user_word_description, added_by_user))
         conn.commit()  # commit the changes to the database
         cur.close()  # close communication with the database
         conn.close()
