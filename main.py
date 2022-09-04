@@ -332,7 +332,6 @@ def check_answer(message):
             db.count_repetition(data['id_lrn_tr'][0], user_id, "+1")
             with bot.retrieve_data(message.from_user.id, message.chat.id) as rt_data:
                 rt_data['level_down_once'] = 0
-            show_word_description(message, word_id=data['id_lrn_tr'][0])
             bot.send_message(message.chat.id, 'Correct!', disable_notification=True)
             show_word_description(message, word_id=data['id_lrn_tr'][0])
             repeat_word(message)
