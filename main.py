@@ -242,6 +242,7 @@ def main_dialog(message):
 
 
 def show_word(message):
+    bot.send_chat_action(message.chat.id, 'typing')  # show the bot "typing" (max. 5 secs)
     user_id = db.get_user_id(message.from_user.id)
     new_words = db.get_new_words_from_dictionary(user_id)
     id_lrn_tr = pickup_word(new_words)
@@ -280,6 +281,7 @@ def sort_word(message):
         bot.send_message(message.chat.id, "Ok, let's learn then! Here is another word:", disable_notification=True,)
         show_word(message)
     elif answer == 'Show translation':
+        bot.send_chat_action(message.chat.id, 'typing')  # show the bot "typing" (max. 5 secs)
         markup = types.ReplyKeyboardMarkup(resize_keyboard=True, row_width=2)
         answer_1 = types.KeyboardButton('Already know')
         answer_2 = types.KeyboardButton('Learn')
@@ -342,7 +344,8 @@ def check_answer(message):
 @bot.message_handler(text=['добавить слово', 'add word', 'Add word'])
 def start_dialog_add_word(message):
     bot.set_state(message.from_user.id, MyStates.waiting_for_word, message.chat.id)
-    bot.send_message(message.chat.id, 'Write english word that you want to learn:', disable_notification=True,)
+    bot.send_message(message.chat.id, 'Write english word that you want to learn:', disable_notification=True,
+                     reply_markup=types.ReplyKeyboardRemove())
 
 
 @bot.message_handler(state=MyStates.waiting_for_word)
@@ -357,10 +360,12 @@ def recieve_word(message):
         scraped_desc = scrap_word(user_word)
         if not scraped_desc:
             db.insert_word(user_word, None, None, None, None, user_id)
-            bot.send_message(message.chat.id, "Can't find any description. Please add your own:", disable_notification=True,)
+            bot.send_message(message.chat.id, "Can't find any description. Please add your own:",
+                             disable_notification=True,)
             bot.set_state(message.from_user.id, MyStates.adding_user_word_desc, message.chat.id)
         elif scraped_desc:
-            word_id = db.insert_word(scraped_desc[0], scraped_desc[1], scraped_desc[2], scraped_desc[3], scraped_desc[4], user_id)
+            word_id = db.insert_word(scraped_desc[0], scraped_desc[1], scraped_desc[2], scraped_desc[3],
+                                     scraped_desc[4], user_id)
             with bot.retrieve_data(message.from_user.id, message.chat.id) as data:
                 data['word_id'] = word_id
             show_word_description(message, word_id=word_id, scraped_desc=scraped_desc)
@@ -370,7 +375,8 @@ def recieve_word(message):
             answer_3 = types.KeyboardButton('Add another description')
             markup.add(answer_1, answer_2, answer_3)
             bot.set_state(message.from_user.id, MyStates.user_answer_dialog_add_word, message.chat.id)
-            bot.send_message(message.chat.id, "I've found it! Do you want to add it to your learning list?",
+            bot.send_message(message.chat.id, "I have such description of the word. "
+                                              "Do you want to add it to your learning list?",
                              disable_notification=True, reply_markup=markup)
     elif word_id:
         show_word_description(message, word_id=word_id, scraped_desc=scraped_desc)
@@ -410,10 +416,9 @@ def add_user_word_desc(message):
     save_word(user_id, word_id, 'repetition', user_word_description=message.text)
     markup = base_buttons()
     bot.delete_state(message.from_user.id, message.chat.id)
-    bot.send_message(message.chat.id, "Saved it! Saved it! What's next?", disable_notification=True, reply_markup=markup)
+    bot.send_message(message.chat.id, "Saved it! What's next?", disable_notification=True, reply_markup=markup)
 
 
-# bot.send_chat_action(cid, 'typing')  # show the bot "typing" (max. 5 secs)
 @bot.message_handler(text=['add subtitles', 'Add words from subtitles'])
 def start_dialog_add_subtitles(message):
     bot.set_state(message.from_user.id, MyStates.waiting_for_subtitles, message.chat.id)

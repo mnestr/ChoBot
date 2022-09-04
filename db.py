@@ -144,13 +144,16 @@ def get_repetition(user_id):
                 LEFT JOIN dictionary as d ON ud.word_id = d.id) as t
                 where (t.repetition = 0 or
                 t.repetition = 1 and timediff > interval '15 minutes' or
+                t.repetition = 1 and timediff > interval '1 hour' or
                 t.repetition = 2 and timediff > interval '6 hour' or
                 t.repetition = 3 and timediff > interval '1 day' or
-                t.repetition = 4 and timediff > interval '2 day' or
-                t.repetition = 5 and timediff > interval '5 day' or
-                t.repetition = 6 and timediff > interval '7 day' or
-                t.repetition = 7 and timediff > interval '14 day' or
-                t.repetition = 8 and timediff > interval '1 month'
+                t.repetition = 4 and timediff > interval '1 day' or
+                t.repetition = 5 and timediff > interval '2 day' or
+                t.repetition = 6 and timediff > interval '3 day' or
+                t.repetition = 7 and timediff > interval '5 day' or
+                t.repetition = 8 and timediff > interval '7 day' or
+                t.repetition = 9 and timediff > interval '14 day' or
+                t.repetition = 10 and timediff > interval '1 month'
                 ) and t.status not in ('already_know', 'to_learn') and t.user_id = %s;"""
     conn = psycopg2.connect(
         database=config.database, user=config.user,
