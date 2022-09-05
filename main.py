@@ -158,17 +158,17 @@ def show_word_description(message, word_id=None, scraped_desc=None):
                                                full_description[0])))
     # надо проверять доступно ли слово по этому адресу и скрывать кнопку если нет
     examp = format_string(full_description)
-    if user_word_description[0]:
+    if len(user_word_description) > 0:
         bot.send_message(message.chat.id,
-                         "  *{0}* (_{1}_) - {2} *//* {3}\n\n_Additional meaning:_{5}\n\n_Example:_\n{4}".format(
+                         "  *{0}* (_{1}_) - {2} *//* {3}\n\n_Additional meaning:_ {5}\n\n_Example:_\n{4}".format(
                                                                                     full_description[0],
                                                                                     full_description[2],
                                                                                     full_description[1],
                                                                                     full_description[3],
                                                                                     examp,
-                                                                                    user_word_description),
+                                                                                    user_word_description[0][0]),
                          disable_notification=True, reply_markup=markup, parse_mode='markdown')
-    else:
+    elif len(user_word_description) == 0:
         bot.send_message(message.chat.id,
                          "  *{0}* (_{1}_) - {2} *//* {3}\n\n_Example:_\n{4}".format(full_description[0],
                                                                                     full_description[2],
