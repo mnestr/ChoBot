@@ -158,9 +158,9 @@ def show_word_description(message, word_id=None, scraped_desc=None):
                                                full_description[0])))
     # надо проверять доступно ли слово по этому адресу и скрывать кнопку если нет
     examp = format_string(full_description)
-    if len(user_word_description) > 0:
+    if examp != '' and len(user_word_description) > 0 and user_word_description[0][0] is not None:
         bot.send_message(message.chat.id,
-                         "  *{0}* (_{1}_) - {2} *//* {3}\n\n_Additional meaning:_ {5}\n\n_Example:_\n{4}".format(
+                         "*{0}* (_{1}_) - {2} *//* {3}\n\n_Additional meaning:_ {5}\n\n_Example:_\n{4}".format(
                                                                                     full_description[0],
                                                                                     full_description[2],
                                                                                     full_description[1],
@@ -168,7 +168,33 @@ def show_word_description(message, word_id=None, scraped_desc=None):
                                                                                     examp,
                                                                                     user_word_description[0][0]),
                          disable_notification=True, reply_markup=markup, parse_mode='markdown')
-    elif len(user_word_description) == 0:
+    elif examp != '' and (len(user_word_description) == 0 or user_word_description[0][0] is None):
+        bot.send_message(message.chat.id,
+                         "*{0}* (_{1}_) - {2} *//* {3}\n\n_Example:_\n{4}".format(
+                                                                                    full_description[0],
+                                                                                    full_description[2],
+                                                                                    full_description[1],
+                                                                                    full_description[3],
+                                                                                    examp),
+                         disable_notification=True, reply_markup=markup, parse_mode='markdown')
+    elif examp == '' and len(user_word_description) == 0 or user_word_description[0][0] is None:
+        bot.send_message(message.chat.id,
+                         "  *{0}* (_{1}_) - {2} *//* {3}\n\n".format(
+                                                                                    full_description[0],
+                                                                                    full_description[2],
+                                                                                    full_description[1],
+                                                                                    full_description[3]),
+                         disable_notification=True, reply_markup=markup, parse_mode='markdown')
+    elif examp == '' and len(user_word_description) > 0 and user_word_description[0][0] is not None:
+        bot.send_message(message.chat.id,
+                         "{0}* (_{1}_) - {2} *//* {3}\n\n_Additional meaning:_ {4}".format(
+                                                                                    full_description[0],
+                                                                                    full_description[2],
+                                                                                    full_description[1],
+                                                                                    full_description[3],
+                                                                                    user_word_description[0][0]),
+                         disable_notification=True, reply_markup=markup, parse_mode='markdown')
+    else:
         bot.send_message(message.chat.id,
                          "  *{0}* (_{1}_) - {2} *//* {3}\n\n_Example:_\n{4}".format(full_description[0],
                                                                                     full_description[2],
@@ -363,6 +389,7 @@ def recieve_word(message):
     word_id = db.find_word_in_dict(user_word)
     user_id = db.get_user_id(message.from_user.id)
     if not word_id:
+        bot.send_chat_action(message.chat.id, 'typing')
         scraped_desc = scrap_word(user_word)
         if not scraped_desc:
             db.insert_word(user_word, None, None, None, None, user_id)
@@ -385,6 +412,7 @@ def recieve_word(message):
                                               "Do you want to add it to your learning list?",
                              disable_notification=True, reply_markup=markup)
     elif word_id:
+        bot.send_chat_action(message.chat.id, 'typing')
         show_word_description(message, word_id=word_id, scraped_desc=scraped_desc)
         with bot.retrieve_data(message.from_user.id, message.chat.id) as data:
             data['word_id'] = word_id
