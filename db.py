@@ -183,13 +183,16 @@ def get_notify_list():
                 LEFT JOIN users as u ON ud.user_id = u.id) as t
                 where (t.repetition = 0 or
                 t.repetition = 1 and timediff > interval '15 minutes' or
+                t.repetition = 1 and timediff > interval '1 hour' or
                 t.repetition = 2 and timediff > interval '6 hour' or
                 t.repetition = 3 and timediff > interval '1 day' or
-                t.repetition = 4 and timediff > interval '2 day' or
-                t.repetition = 5 and timediff > interval '5 day' or
-                t.repetition = 6 and timediff > interval '7 day' or
-                t.repetition = 7 and timediff > interval '14 day' or
-                t.repetition = 8 and timediff > interval '1 month'
+                t.repetition = 4 and timediff > interval '1 day' or
+                t.repetition = 5 and timediff > interval '2 day' or
+                t.repetition = 6 and timediff > interval '3 day' or
+                t.repetition = 7 and timediff > interval '5 day' or
+                t.repetition = 8 and timediff > interval '7 day' or
+                t.repetition = 9 and timediff > interval '14 day' or
+                t.repetition = 10 and timediff > interval '1 month'
                 ) and t.status NOT IN ('already_know', 'to_learn')
                 group by t.user_id, t.chat_id, t.notifications_count, t.last_notification_at;"""
     conn = psycopg2.connect(
