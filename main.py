@@ -506,6 +506,16 @@ def command_default(message):
                      disable_notification=True, reply_markup=markup)
 
 
+def scheduled_reminder():
+    notify_list = db.get_notify_list()
+    for item in notify_list:
+        if not item[5] or item[3] > item[5]:
+            db.count_notification(item[0])
+            markup = base_buttons()
+            bot.send_message(item[1], "Hey, you have {0} words to repeat! Wanna start?".format(item[2]),
+                             reply_markup=markup)
+
+
 bot.add_custom_filter(custom_filters.StateFilter(bot))
 bot.add_custom_filter(custom_filters.TextMatchFilter())
 bot.polling(none_stop=True)
