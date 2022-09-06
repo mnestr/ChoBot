@@ -516,6 +516,7 @@ def scheduled_reminder():
                              reply_markup=markup)
 
 
-bot.add_custom_filter(custom_filters.StateFilter(bot))
-bot.add_custom_filter(custom_filters.TextMatchFilter())
-bot.infinity_polling()
+if __name__ == "__main__":
+    bot.add_custom_filter(custom_filters.StateFilter(bot))
+    bot.add_custom_filter(custom_filters.TextMatchFilter())
+    bot.infinity_polling()
