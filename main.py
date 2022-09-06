@@ -518,4 +518,4 @@ def scheduled_reminder():
 
 bot.add_custom_filter(custom_filters.StateFilter(bot))
 bot.add_custom_filter(custom_filters.TextMatchFilter())
-bot.polling(none_stop=True)
+bot.infinity_polling()
