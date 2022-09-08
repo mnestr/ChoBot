@@ -174,7 +174,9 @@ def get_repetition(user_id):
 
 
 def get_notify_list():
-    sql = """SELECT t.user_id, t.chat_id, count(t.word_id), MAX(t.updated_at), t.notifications_count, 
+    sql = """SELECT tt.user_id, tt.chat_id, tt.c, tt.notifications_count, tt.last_notification_at, MAX(uud.updated_at)
+                FROM (                
+                SELECT t.user_id, t.chat_id, count(t.word_id) as c, t.notifications_count, 
                 t.last_notification_at  from (
                 SELECT ud.user_id, ud.word_id, ud.updated_at, ud.repetition, ud.status,
                 u.chat_id, u.notifications_count, u.last_notification_at, 
@@ -194,7 +196,9 @@ def get_notify_list():
                 t.repetition = 9 and timediff > interval '14 day' or
                 t.repetition = 10 and timediff > interval '1 month'
                 ) and t.status NOT IN ('already_know', 'to_learn')
-                group by t.user_id, t.chat_id, t.notifications_count, t.last_notification_at;"""
+                group by t.user_id, t.chat_id, t.notifications_count, t.last_notification_at) as tt
+                LEFT JOIN user_dictionary as uud ON tt.user_id = uud.user_id
+                group by 1,2,3,4,5;"""
     conn = psycopg2.connect(
         database=config.database, user=config.user,
         password=config.password,
