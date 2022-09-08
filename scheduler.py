@@ -12,4 +12,4 @@ if __name__ == "__main__":
             db.count_notification(item[0])
             markup = base_buttons()
             bot.send_message(item[1], "Hey, you have {0} words to repeat! Wanna start?".format(item[2]),
-                             reply_markup=markup)
+                             disable_notification=False, reply_markup=markup)
