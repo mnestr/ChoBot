@@ -428,7 +428,7 @@ def check_if_word_in_user_dict(word_id):
 
 
 def get_statistics(user_id):
-    sql = """SELECT status, count(word_id) FROM user_dictionary where user_id = 46 group by status;"""
+    sql = """SELECT status, count(word_id) FROM user_dictionary where user_id = %s group by status;"""
     conn = psycopg2.connect(
         database=config.database, user=config.user,
         password=config.password,

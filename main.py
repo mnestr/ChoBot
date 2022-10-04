@@ -26,8 +26,8 @@ class MyStates(StatesGroup):
     sorted_words_count = State()
     level_down_once = State()
     word_id = State()
-    waiting_for_subtitles = State()
     subtitles_id = State()
+    waiting_feedback = State()
 
 
 # repetitions = {1: 15 минут, 2: 6 часов, 3: 1 день, 4: 2 дня, 4: 3 суток, 5: 5 дней, 6: 7 дней, 7: 14 дней, 8: 1 месяц}
@@ -167,14 +167,14 @@ def show_word_description(message, word_id=None, scraped_desc=None):
     examp = format_string(full_description)
     bot.send_message(message.chat.id,
                      "*{word}* _({part_of_speach})_ - {translation}{meaning}{additional_meaning}{examp}".format(
-                             word=full_description["word"],
-                             part_of_speach=full_description["part_of_speach"],
-                             translation=full_description["translation"] + " *//* " if
-                                full_description["translation"] != '' else"",
-                             meaning=full_description["meaning"],
-                             examp="\n\n_Example:_\n" + examp if examp != '' else "",
-                             additional_meaning="\n\n_Additional meaning:_" + str(user_word_description[0][0]) if len(
-                                 user_word_description) > 0 and user_word_description[0][0] is not None else ""),
+                         word=full_description["word"],
+                         part_of_speach=full_description["part_of_speach"],
+                         translation=full_description["translation"] + " *//* " if
+                         full_description["translation"] != '' else "",
+                         meaning=full_description["meaning"],
+                         examp="\n\n_Example:_\n" + examp if examp != '' else "",
+                         additional_meaning="\n\n_Additional meaning:_" + str(user_word_description[0][0]) if len(
+                             user_word_description) > 0 and user_word_description[0][0] is not None else ""),
                      disable_notification=True, reply_markup=markup, parse_mode='markdown')
 
 
@@ -183,8 +183,8 @@ def base_buttons():
     answer_1 = types.KeyboardButton('Anything to repeat?')
     answer_2 = types.KeyboardButton('Learn new words')
     answer_3 = types.KeyboardButton('Add word')
-    answer_4 = types.KeyboardButton('Add words from subtitles')
-    markup.add(answer_1, answer_2, answer_3, answer_4)
+    # answer_4 = types.KeyboardButton('Suggest an idea or leave feedback')
+    markup.add(answer_1, answer_2, answer_3)
     return markup
 
 
@@ -320,7 +320,7 @@ def repeat_word(message):
     elif len(repetition) == 0:
         markup = base_buttons()
         bot.delete_state(message.from_user.id, message.chat.id)
-        statistics = db.get_statistics(message.from_user.id)
+        statistics = db.get_statistics(user_id)
         bot.send_message(message.chat.id, "You've repeated all words. Try to memorize them and Come back later to "
                                           "repeat.\n\nHere is your short statistics:\n"
                                           "Already known *{0}* words. In progress *{2}* words. "
@@ -363,48 +363,78 @@ def check_answer(message):
 @bot.message_handler(text=['добавить слово', 'add word', 'Add word'])
 def start_dialog_add_word(message):
     bot.set_state(message.from_user.id, MyStates.waiting_for_word, message.chat.id)
-    bot.send_message(message.chat.id, 'Write english word that you want to learn:', disable_notification=True,
+    bot.send_message(message.chat.id, 'Write english word that you want to learn. Or you can drop me your file'
+                                      ' with text, subtitles for instance and I will add all words from the file '
+                                      'to your learning list. Keep in mind I can work only with'
+                                      ' .srt or .txt files', disable_notification=True,
                      reply_markup=types.ReplyKeyboardRemove())
 
 
 @bot.message_handler(state=MyStates.waiting_for_word)
 def recieve_word(message):
-    user_word = message.text.lower()
-    # check_spelling()
-    # check_english_word()
-    word_id = db.find_word_in_dict(user_word)
-    user_id = db.get_user_id(message.from_user.id)
-    if not word_id:
-        bot.send_chat_action(message.chat.id, 'typing')
-        scraped_desc = scrap_word(user_word)
-        if not scraped_desc:
-            db.insert_word(user_word, None, None, None, None, user_id)
-            bot.send_message(message.chat.id, "Can't find any description. Please add your own:",
-                             disable_notification=True, )
-            bot.set_state(message.from_user.id, MyStates.adding_user_word_desc, message.chat.id)
-        elif scraped_desc:
-            word_id = db.insert_word(scraped_desc["word"], scraped_desc["translation"], scraped_desc["prt_of_speach"], scraped_desc["meaning"],
-                                     scraped_desc["examp"], user_id)
+    if message.content_type == 'text':
+        user_word = message.text.lower()
+        # check_spelling()
+        # check_english_word()
+        word_id = db.find_word_in_dict(user_word)
+        user_id = db.get_user_id(message.from_user.id)
+        if not word_id:
+            bot.send_chat_action(message.chat.id, 'typing')
+            scraped_desc = scrap_word(user_word)
+            if not scraped_desc:
+                db.insert_word(user_word, None, None, None, None, user_id)
+                bot.send_message(message.chat.id, "Can't find any description. Please add your own:",
+                                 disable_notification=True, )
+                bot.set_state(message.from_user.id, MyStates.adding_user_word_desc, message.chat.id)
+            elif scraped_desc:
+                word_id = db.insert_word(scraped_desc["word"], scraped_desc["translation"],
+                                         scraped_desc["prt_of_speach"], scraped_desc["meaning"],
+                                         scraped_desc["examp"], user_id)
+                with bot.retrieve_data(message.from_user.id, message.chat.id) as data:
+                    data['word_id'] = word_id
+                show_word_description(message, word_id=word_id, scraped_desc=scraped_desc)
+                markup = types.ReplyKeyboardMarkup(row_width=2)
+                answer_1 = types.KeyboardButton('Yes, please')
+                answer_2 = types.KeyboardButton('Nope')
+                answer_3 = types.KeyboardButton('Add another description')
+                markup.add(answer_1, answer_2, answer_3)
+                bot.set_state(message.from_user.id, MyStates.user_answer_dialog_add_word, message.chat.id)
+                bot.send_message(message.chat.id, "I have such description of the word. "
+                                                  "Do you want to add it to your learning list?",
+                                 disable_notification=True, reply_markup=markup)
+        elif word_id:
+            bot.send_chat_action(message.chat.id, 'typing')
+            show_word_description(message, word_id=word_id, scraped_desc=scraped_desc)
             with bot.retrieve_data(message.from_user.id, message.chat.id) as data:
                 data['word_id'] = word_id
-            show_word_description(message, word_id=word_id, scraped_desc=scraped_desc)
-            markup = types.ReplyKeyboardMarkup(row_width=2)
-            answer_1 = types.KeyboardButton('Yes, please')
-            answer_2 = types.KeyboardButton('Nope')
-            answer_3 = types.KeyboardButton('Add another description')
-            markup.add(answer_1, answer_2, answer_3)
+            markup = base_buttons()
             bot.set_state(message.from_user.id, MyStates.user_answer_dialog_add_word, message.chat.id)
-            bot.send_message(message.chat.id, "I have such description of the word. "
-                                              "Do you want to add it to your learning list?",
+            bot.send_message(message.chat.id, "I've found it! Do you want to add it to your learning list?",
                              disable_notification=True, reply_markup=markup)
-    elif word_id:
-        bot.send_chat_action(message.chat.id, 'typing')
-        show_word_description(message, word_id=word_id, scraped_desc=scraped_desc)
-        with bot.retrieve_data(message.from_user.id, message.chat.id) as data:
-            data['word_id'] = word_id
+    elif message.content_type == 'document' and message.document.file_name[-4:] in ['.srt', '.txt']:
+        bot.send_message(message.chat.id,
+                         "I've received your file. I need some time to process it. I'll message you when I'm done.",
+                         disable_notification=True)
+        download_file(message)
+        raw_text = se.read_file(message.document.file_unique_id)
+        delete_file(message)
+        bot.delete_state(message.from_user.id, message.chat.id)
+        text = se.clean_text(raw_text)
+        lem_words = se.lemmatize_words(text)
+        cleaned_words = se.clean(lem_words)
+        count_cleaned_words = len(cleaned_words)
+        bot.send_chat_action(message.chat.id, 'typing')  # show the bot "typing" (max. 5 secs)
+        count_words_without_desc, count_words_added, count_words_already_known = se.add_to_user(message, cleaned_words)
         markup = base_buttons()
-        bot.set_state(message.from_user.id, MyStates.user_answer_dialog_add_word, message.chat.id)
-        bot.send_message(message.chat.id, "I've found it! Do you want to add it to your learning list?",
+        bot.send_message(message.chat.id,
+                         "Ready! I've found {0} words in the text. You already know {1} words from this "
+                         "text. But {2} are new for you or at least they are not in your learning "
+                         "list, so i've added them.".format(count_cleaned_words, count_words_already_known,
+                                                            count_words_added),
+                         disable_notification=False, reply_markup=markup)
+    elif message.content_type == 'document' and message.document.file_name[-4:] not in ['.srt', '.txt']:
+        markup = base_buttons()
+        bot.send_message(message.chat.id, "Sorry but I can't work with such file.(( I can only.srt or .txt file",
                          disable_notification=True, reply_markup=markup)
 
 
@@ -439,40 +469,21 @@ def add_user_word_desc(message):
     bot.send_message(message.chat.id, "Saved it! What's next?", disable_notification=True, reply_markup=markup)
 
 
-@bot.message_handler(text=['add subtitles', 'Add words from subtitles'])
-def start_dialog_add_subtitles(message):
-    bot.set_state(message.from_user.id, MyStates.waiting_for_subtitles, message.chat.id)
-    bot.send_message(message.chat.id, 'Hey, drop me your subtitles. It should be .srt or .txt file',
-                     disable_notification=True)
-
-
-@bot.message_handler(state=MyStates.waiting_for_subtitles, content_types=['document'])
-def handle_subtitles(message):
-    if message.document.file_name[-4:] in ['.srt', '.txt']:
-        bot.send_message(message.chat.id,
-                         "I've received your file. I need some time to process it. I'll message you when I'm done.",
-                         disable_notification=True)
-        download_file(message)
-        raw_text = se.read_file(message.document.file_unique_id)
-        delete_file(message)
-        bot.delete_state(message.from_user.id, message.chat.id)
-        text = se.clean_text(raw_text)
-        lem_words = se.lemmatize_words(text)
-        cleaned_words = se.clean(lem_words)
-        count_cleaned_words = len(cleaned_words)
-        bot.send_chat_action(message.chat.id, 'typing')  # show the bot "typing" (max. 5 secs)
-        count_words_without_desc, count_words_added, count_words_already_known = se.add_to_user(message, cleaned_words)
-        markup = base_buttons()
-        bot.send_message(message.chat.id,
-                         "Ready! I've found {0} words in the text. You already know {1} words from this "
-                         "text. But {2} are new for you or at least they are not in your learning "
-                         "list, so i've added them.".format(count_cleaned_words, count_words_already_known,
-                                                            count_words_added),
-                         disable_notification=False, reply_markup=markup)
-    else:
-        markup = base_buttons()
-        bot.send_message(message.chat.id, "Sorry but I can't work with such file.(( I can only.srt or .txt file",
-                         disable_notification=True, reply_markup=markup)
+# @bot.message_handler(text=['Suggest an idea or leave feedback'])
+# def feedback_dialog(message):
+#     bot.set_state(message.from_user.id, MyStates.waiting_feedback, message.chat.id)
+#     bot.send_message(message.chat.id, "Any feedback would be very helpful for me. Smth is not working or "
+#                                       "translation is bad or you want to add new featurePlease, please leave "
+#                                       "your feedback here:",
+#                      disable_notification=True, reply_markup=types.ReplyKeyboardRemove())
+#
+#
+# @bot.message_handler(state=MyStates.waiting_feedback)
+# def recieve_feedback(message):
+#
+#     markup = base_buttons()
+#     bot.send_message(message.chat.id, "Thank you so much! What's next?",
+#                      disable_notification=True, reply_markup=markup)
 
 
 # default handler for every other text
