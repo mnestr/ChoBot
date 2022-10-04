@@ -184,7 +184,7 @@ def base_buttons():
     answer_2 = types.KeyboardButton('Learn new words')
     answer_3 = types.KeyboardButton('Add word')
     answer_4 = types.KeyboardButton('Suggest an idea or leave feedback')
-    markup.add(answer_1, answer_2, answer_3)
+    markup.add(answer_1, answer_2, answer_3, answer_4)
     return markup
 
 
