@@ -183,7 +183,7 @@ def base_buttons():
     answer_1 = types.KeyboardButton('Anything to repeat?')
     answer_2 = types.KeyboardButton('Learn new words')
     answer_3 = types.KeyboardButton('Add word')
-    # answer_4 = types.KeyboardButton('Suggest an idea or leave feedback')
+    answer_4 = types.KeyboardButton('Suggest an idea or leave feedback')
     markup.add(answer_1, answer_2, answer_3)
     return markup
 
@@ -469,21 +469,22 @@ def add_user_word_desc(message):
     bot.send_message(message.chat.id, "Saved it! What's next?", disable_notification=True, reply_markup=markup)
 
 
-# @bot.message_handler(text=['Suggest an idea or leave feedback'])
-# def feedback_dialog(message):
-#     bot.set_state(message.from_user.id, MyStates.waiting_feedback, message.chat.id)
-#     bot.send_message(message.chat.id, "Any feedback would be very helpful for me. Smth is not working or "
-#                                       "translation is bad or you want to add new featurePlease, please leave "
-#                                       "your feedback here:",
-#                      disable_notification=True, reply_markup=types.ReplyKeyboardRemove())
-#
-#
-# @bot.message_handler(state=MyStates.waiting_feedback)
-# def recieve_feedback(message):
-#
-#     markup = base_buttons()
-#     bot.send_message(message.chat.id, "Thank you so much! What's next?",
-#                      disable_notification=True, reply_markup=markup)
+@bot.message_handler(text=['Suggest an idea or leave feedback'])
+def feedback_dialog(message):
+    bot.set_state(message.from_user.id, MyStates.waiting_feedback, message.chat.id)
+    bot.send_message(message.chat.id, "Any feedback would be very helpful for me. Smth is not working or "
+                                      "translation is bad or you want to add new feature, please, leave "
+                                      "your feedback here:",
+                     disable_notification=True, reply_markup=types.ReplyKeyboardRemove())
+
+
+@bot.message_handler(state=MyStates.waiting_feedback)
+def recieve_feedback(message):
+    bot.send_message(5341870331, message)
+    bot.delete_state(message.from_user.id, message.chat.id)
+    markup = base_buttons()
+    bot.send_message(message.chat.id, "Thank you so much! What's next?",
+                     disable_notification=True, reply_markup=markup)
 
 
 # default handler for every other text
