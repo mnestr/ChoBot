@@ -55,6 +55,30 @@ def get_user_id(tg_id):
             conn.close()
 
 
+def get_user_lang(tg_id):
+    sql = """SELECT lang_code FROM users where tg_id = %s;"""
+
+    conn = psycopg2.connect(
+        database=config.database, user=config.user,
+        password=config.password,
+        host=config.host, port=config.port, sslmode='require')
+    try:
+        cur = conn.cursor()
+        cur.execute(sql,(tg_id,))
+        user_lang = cur.fetchall()
+        cur.close()  # close communication with the database
+        conn.close()
+        if not user_lang:
+            return user_lang
+        else:
+            return user_lang[0][0]
+    except (Exception, psycopg2.DatabaseError) as error:
+        print(error)
+    finally:
+        if conn is not None:
+            conn.close()
+
+
 def insert_word(word, translation, prt_of_speach, meaning, examp, user_id):
     sql_check = """SELECT id FROM dictionary WHERE  word = %s and translation = %s and part_of_speach = %s"""
     sql_insert = """INSERT INTO dictionary(word, translation, part_of_speach, meaning, example, added_by_user_id)
@@ -138,8 +162,9 @@ def get_words_from_dictionary():
     return words_from_dictionary
 
 
-def get_repetition(user_id):
-    sql = """SELECT t.word_id, t.word, t.translation  from (
+def get_repetition(user_id, lang='en'):
+    lang_db = {"en": "meaning", "ru": "translation"}
+    sql = """SELECT t.word_id, t.word, t.{0}  from (
                 SELECT *, now() - updated_at as timediff from user_dictionary as ud 
                 LEFT JOIN dictionary as d ON ud.word_id = d.id) as t
                 where (t.repetition = 0 or
@@ -154,7 +179,7 @@ def get_repetition(user_id):
                 t.repetition = 8 and timediff > interval '7 day' or
                 t.repetition = 9 and timediff > interval '14 day' or
                 t.repetition = 10 and timediff > interval '1 month'
-                ) and t.status not in ('already_know', 'to_learn') and t.user_id = %s;"""
+                ) and t.status not in ('already_know', 'to_learn') and t.user_id = %s;""".format(lang_db[lang])
     conn = psycopg2.connect(
         database=config.database, user=config.user,
         password=config.password,
@@ -244,19 +269,23 @@ def count_notification(user_id):
             conn.close()
 
 
-def get_descr_from_dict(id):
-    sql = """SELECT word, translation, part_of_speach, meaning, example FROM dictionary where id = %s;"""
+def get_descr_from_dict(word_id, user_lang):
+    lang_db = {"ru": "meaning, translation", "en": "meaning"}
+    sql = """SELECT word, part_of_speach, example, {0} 
+                FROM dictionary where id = %s;""".format(lang_db[user_lang])
     conn = psycopg2.connect(
         database=config.database, user=config.user,
         password=config.password,
         host=config.host, port=config.port, sslmode='require')
     try:
         cur = conn.cursor()
-        cur.execute(sql,(id,))
-        word_dscr = cur.fetchall()
+        cur.execute(sql,(word_id,))
+        word_dscr_db = cur.fetchall()
         cur.close()  # close communication with the database
         conn.close()
-        return word_dscr[0]
+        word_dscr = {"word": "", "part_of_speach": "", "example": "", "meaning": "", "translation": ""}
+        word_dscr.update(dict(zip(word_dscr, word_dscr_db[0])))
+        return word_dscr
     except (Exception, psycopg2.DatabaseError) as error:
         print(error)
     finally:

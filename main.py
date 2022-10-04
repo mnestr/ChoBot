@@ -11,7 +11,6 @@ import config
 from bs4 import BeautifulSoup
 import requests
 
-
 state_storage = StateMemoryStorage()
 bot = telebot.TeleBot(config.token, state_storage=state_storage, parse_mode=None, num_threads=3)
 
@@ -29,6 +28,7 @@ class MyStates(StatesGroup):
     word_id = State()
     waiting_for_subtitles = State()
     subtitles_id = State()
+
 
 # repetitions = {1: 15 минут, 2: 6 часов, 3: 1 день, 4: 2 дня, 4: 3 суток, 5: 5 дней, 6: 7 дней, 7: 14 дней, 8: 1 месяц}
 
@@ -57,27 +57,33 @@ def scrap_word(word):
     soup = BeautifulSoup(response.content, "html.parser")
     block = soup.find("div", class_="def-block ddef_block")
 
+    word_dscr = {"word": word, "part_of_speach": "", "example": "", "meaning": "", "translation": ""}
+
     try:
         ps_tgs = soup.find("span", class_="pos dpos")
         prt_of_speach = ps_tgs.get_text(strip=True)
+        word_dscr["prt_of_speach"] = prt_of_speach
 
         tr_tgs = block.find("span", class_="trans dtrans dtrans-se")
         translation = tr_tgs.text.strip()
+        word_dscr["translation"] = translation
 
         mn_tgs = block.find_all("div", class_="def ddef_d db")
         meaning_lst = []
         for each in mn_tgs:
             meaning_lst.append(each.text.strip())
         meaning = " ".join(meaning_lst)
+        word_dscr["meaning"] = meaning
 
         examp_tgs = block.find_all("div", class_="examp dexamp")
         examp_lst = []
         for each in examp_tgs:
             examp_lst.append(each.text.strip())
         examp = "\n".join(examp_lst)
+        word_dscr["examp"] = examp
     except:
         return None
-    return word, translation, prt_of_speach, meaning, examp
+    return word_dscr
 
 
 def create_user(message):
@@ -97,7 +103,7 @@ def pickup_answers_on_buttons(id_lrn_tr):
         if x[0] == id_lrn_tr[0]:
             continue
         else:
-         words.append(x[1])
+            words.append(x[1])
     answers = random.sample(list(words), 3)
     answers.append(id_lrn_tr[1])
     random.shuffle(answers)
@@ -136,8 +142,8 @@ def pickup_word(repetition):
     return word_id, word_lrn, word_tr
 
 
-def format_string(full_translation):
-    examp_list = full_translation[4].split("\n")
+def format_string(full_description):
+    examp_list = full_description["example"].split("\n")
     examp_list2 = []
     for i in examp_list:
         if not i: continue
@@ -147,61 +153,29 @@ def format_string(full_translation):
 
 
 def show_word_description(message, word_id=None, scraped_desc=None):
+    user_lang = db.get_user_lang(message.from_user.id)
     if word_id:
-        full_description = db.get_descr_from_dict(word_id)
+        full_description = db.get_descr_from_dict(word_id, user_lang)
     elif scraped_desc:
         full_description = scraped_desc
     user_word_description = db.get_user_descr(word_id)
     markup = types.InlineKeyboardMarkup()
     markup.add(types.InlineKeyboardButton("Check Cambridge definition",
-                                           url='https://dictionary.cambridge.org/dictionary/english-russian/{0}'.format(
-                                               full_description[0])))
+                                          url='https://dictionary.cambridge.org/dictionary/english-russian/{0}'.format(
+                                              full_description["word"])))
     # надо проверять доступно ли слово по этому адресу и скрывать кнопку если нет
     examp = format_string(full_description)
-    if examp != '' and len(user_word_description) > 0 and user_word_description[0][0] is not None:
-        bot.send_message(message.chat.id,
-                         "*{0}* (_{1}_) - {2} *//* {3}\n\n_Additional meaning:_ {5}\n\n_Example:_\n{4}".format(
-                                                                                    full_description[0],
-                                                                                    full_description[2],
-                                                                                    full_description[1],
-                                                                                    full_description[3],
-                                                                                    examp,
-                                                                                    user_word_description[0][0]),
-                         disable_notification=True, reply_markup=markup, parse_mode='markdown')
-    elif examp != '' and (len(user_word_description) == 0 or user_word_description[0][0] is None):
-        bot.send_message(message.chat.id,
-                         "*{0}* (_{1}_) - {2} *//* {3}\n\n_Example:_\n{4}".format(
-                                                                                    full_description[0],
-                                                                                    full_description[2],
-                                                                                    full_description[1],
-                                                                                    full_description[3],
-                                                                                    examp),
-                         disable_notification=True, reply_markup=markup, parse_mode='markdown')
-    elif examp == '' and len(user_word_description) == 0 or user_word_description[0][0] is None:
-        bot.send_message(message.chat.id,
-                         "  *{0}* (_{1}_) - {2} *//* {3}\n\n".format(
-                                                                                    full_description[0],
-                                                                                    full_description[2],
-                                                                                    full_description[1],
-                                                                                    full_description[3]),
-                         disable_notification=True, reply_markup=markup, parse_mode='markdown')
-    elif examp == '' and len(user_word_description) > 0 and user_word_description[0][0] is not None:
-        bot.send_message(message.chat.id,
-                         "{0}* (_{1}_) - {2} *//* {3}\n\n_Additional meaning:_ {4}".format(
-                                                                                    full_description[0],
-                                                                                    full_description[2],
-                                                                                    full_description[1],
-                                                                                    full_description[3],
-                                                                                    user_word_description[0][0]),
-                         disable_notification=True, reply_markup=markup, parse_mode='markdown')
-    else:
-        bot.send_message(message.chat.id,
-                         "  *{0}* (_{1}_) - {2} *//* {3}\n\n_Example:_\n{4}".format(full_description[0],
-                                                                                    full_description[2],
-                                                                                    full_description[1],
-                                                                                    full_description[3],
-                                                                                    examp),
-                         disable_notification=True, reply_markup=markup, parse_mode='markdown')
+    bot.send_message(message.chat.id,
+                     "*{word}* _({part_of_speach})_ - {translation}{meaning}{additional_meaning}{examp}".format(
+                             word=full_description["word"],
+                             part_of_speach=full_description["part_of_speach"],
+                             translation=full_description["translation"] + " *//* " if
+                                full_description["translation"] != '' else"",
+                             meaning=full_description["meaning"],
+                             examp="\n\n_Example:_\n" + examp if examp != '' else "",
+                             additional_meaning="\n\n_Additional meaning:_" + str(user_word_description[0][0]) if len(
+                                 user_word_description) > 0 and user_word_description[0][0] is not None else ""),
+                     disable_notification=True, reply_markup=markup, parse_mode='markdown')
 
 
 def base_buttons():
@@ -224,9 +198,9 @@ def start(message):
         markup = types.ReplyKeyboardMarkup(resize_keyboard=True, row_width=1)
         answer_1 = types.KeyboardButton('Learn new words')
         markup.add(answer_1)
-        bot.send_message(message.chat.id, "Hi! I'm Steve!", disable_notification=True,)
+        bot.send_message(message.chat.id, "Hi! I'm Steve!", disable_notification=True, )
         photo = open('Pictures/1.jpg', 'rb')
-        bot.send_photo(message.from_user.id, photo, disable_notification=True,)
+        bot.send_photo(message.from_user.id, photo, disable_notification=True, )
         bot.send_message(message.chat.id, "Wanna learn some words?", disable_notification=True, reply_markup=markup)
     else:
         repetition = db.get_repetition(user_id)
@@ -252,7 +226,7 @@ def start(message):
 def main_dialog(message):
     if message.text == 'Learn new words':
         bot.send_chat_action(message.chat.id, 'typing')
-        bot.send_message(message.chat.id, "Ok. Do you know this one?", disable_notification=True,)
+        bot.send_message(message.chat.id, "Ok. Do you know this one?", disable_notification=True, )
         bot.set_state(message.from_user.id, MyStates.sort_words, message.chat.id)
         with bot.retrieve_data(message.from_user.id, message.chat.id) as data:
             data['sorted_words_count'] = 0
@@ -310,13 +284,13 @@ def sort_word(message):
                          reply_markup=markup)
     elif answer == 'Already know':
         save_word(user_id, data['id_lrn_tr'][0], 'already_know')
-        bot.send_message(message.chat.id, 'Lucky you! Here is another word:', disable_notification=True,)
+        bot.send_message(message.chat.id, 'Lucky you! Here is another word:', disable_notification=True, )
         show_word(message)
     elif answer == 'Learn':
         save_word(user_id, data['id_lrn_tr'][0], 'repetition')
         with bot.retrieve_data(message.from_user.id, message.chat.id) as data:
             data['sorted_words_count'] += 1
-        bot.send_message(message.chat.id, "Ok, let's learn then! Here is another word:", disable_notification=True,)
+        bot.send_message(message.chat.id, "Ok, let's learn then! Here is another word:", disable_notification=True, )
         show_word(message)
     elif answer == 'Show translation':
         bot.send_chat_action(message.chat.id, 'typing')
@@ -332,9 +306,10 @@ def sort_word(message):
 def repeat_word(message):
     bot.send_chat_action(message.chat.id, 'typing')
     user_id = db.get_user_id(message.from_user.id)
-    repetition = db.get_repetition(user_id)
+    user_lang = db.get_user_lang(message.from_user.id)
+    repetition = db.get_repetition(user_id, user_lang)
     if len(repetition) > 0:
-        bot.send_message(message.chat.id, "Do you remember:", disable_notification=True,)
+        bot.send_message(message.chat.id, "Do you remember:", disable_notification=True, )
         id_lrn_tr = pickup_word(repetition)
         markup = pickup_answers_on_buttons(id_lrn_tr)
         bot.set_state(message.from_user.id, MyStates.repetition, message.chat.id)
@@ -382,7 +357,7 @@ def check_answer(message):
             db.count_repetition(data['id_lrn_tr'][0], user_id, "-1")
             with bot.retrieve_data(message.from_user.id, message.chat.id) as rt_data:
                 rt_data['level_down_once'] = 1
-        bot.send_message(message.chat.id, 'Try again', disable_notification=True,)
+        bot.send_message(message.chat.id, 'Try again', disable_notification=True, )
 
 
 @bot.message_handler(text=['добавить слово', 'add word', 'Add word'])
@@ -395,7 +370,6 @@ def start_dialog_add_word(message):
 @bot.message_handler(state=MyStates.waiting_for_word)
 def recieve_word(message):
     user_word = message.text.lower()
-    scraped_desc = None
     # check_spelling()
     # check_english_word()
     word_id = db.find_word_in_dict(user_word)
@@ -406,11 +380,11 @@ def recieve_word(message):
         if not scraped_desc:
             db.insert_word(user_word, None, None, None, None, user_id)
             bot.send_message(message.chat.id, "Can't find any description. Please add your own:",
-                             disable_notification=True,)
+                             disable_notification=True, )
             bot.set_state(message.from_user.id, MyStates.adding_user_word_desc, message.chat.id)
         elif scraped_desc:
-            word_id = db.insert_word(scraped_desc[0], scraped_desc[1], scraped_desc[2], scraped_desc[3],
-                                     scraped_desc[4], user_id)
+            word_id = db.insert_word(scraped_desc["word"], scraped_desc["translation"], scraped_desc["prt_of_speach"], scraped_desc["meaning"],
+                                     scraped_desc["examp"], user_id)
             with bot.retrieve_data(message.from_user.id, message.chat.id) as data:
                 data['word_id'] = word_id
             show_word_description(message, word_id=word_id, scraped_desc=scraped_desc)
@@ -468,13 +442,15 @@ def add_user_word_desc(message):
 @bot.message_handler(text=['add subtitles', 'Add words from subtitles'])
 def start_dialog_add_subtitles(message):
     bot.set_state(message.from_user.id, MyStates.waiting_for_subtitles, message.chat.id)
-    bot.send_message(message.chat.id, 'Hey, drop me your subtitles. It should be .srt or .txt file', disable_notification=True)
+    bot.send_message(message.chat.id, 'Hey, drop me your subtitles. It should be .srt or .txt file',
+                     disable_notification=True)
 
 
 @bot.message_handler(state=MyStates.waiting_for_subtitles, content_types=['document'])
 def handle_subtitles(message):
     if message.document.file_name[-4:] in ['.srt', '.txt']:
-        bot.send_message(message.chat.id, "I've received your file. I need some time to process it. I'll message you when I'm done.",
+        bot.send_message(message.chat.id,
+                         "I've received your file. I need some time to process it. I'll message you when I'm done.",
                          disable_notification=True)
         download_file(message)
         raw_text = se.read_file(message.document.file_unique_id)
@@ -487,9 +463,11 @@ def handle_subtitles(message):
         bot.send_chat_action(message.chat.id, 'typing')  # show the bot "typing" (max. 5 secs)
         count_words_without_desc, count_words_added, count_words_already_known = se.add_to_user(message, cleaned_words)
         markup = base_buttons()
-        bot.send_message(message.chat.id, "Ready! I've found {0} words in the text. You already know {1} words from this "
-                                          "text. But {2} are new for you or at least they are not in your learning "
-                                          "list, so i've added them.".format(count_cleaned_words, count_words_already_known, count_words_added),
+        bot.send_message(message.chat.id,
+                         "Ready! I've found {0} words in the text. You already know {1} words from this "
+                         "text. But {2} are new for you or at least they are not in your learning "
+                         "list, so i've added them.".format(count_cleaned_words, count_words_already_known,
+                                                            count_words_added),
                          disable_notification=False, reply_markup=markup)
     else:
         markup = base_buttons()
