@@ -264,6 +264,7 @@ def main_dialog(message):
         markup = base_buttons()
         bot.send_message(message.chat.id, 'As you wish=/', disable_notification=True, reply_markup=markup)
     elif message.text == '/home':
+        bot.delete_state(message.from_user.id, message.chat.id)
         markup = base_buttons()
         bot.send_message(message.chat.id, 'Hey, whats up?', disable_notification=True, reply_markup=markup)
 
