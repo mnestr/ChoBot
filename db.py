@@ -109,12 +109,34 @@ def insert_word(word, translation, prt_of_speach, meaning, examp, user_id):
             conn.close()
 
 
+def update_word(id, translation_es, translation_ar):
+    sql_update = """UPDATE dictionary
+                    SET translation_es = %s,
+                        translation_ar = %s
+                    WHERE id = %s;"""
+    conn = psycopg2.connect(
+        database="d4507rcebm77pe", user='yvobcmcbgkgweo',
+        password='e88ed490b84655daef799b73606fadeb8bee8f41bf7f4b48654eb213c33fa71b',
+        host='ec2-54-155-110-181.eu-west-1.compute.amazonaws.com', port='5432', sslmode='require')
+    try:
+        cur = conn.cursor()  # create a new cursor
+        cur.execute(sql_update, (translation_es, translation_ar, id))
+        conn.commit()
+        cur.close()  # close communication with the database
+        conn.close()
+    except (Exception, psycopg2.DatabaseError) as error:
+        print(error)
+    finally:
+        if conn is not None:
+            conn.close()
+
+
 def get_new_words_from_dictionary(user_id):
-    sql_1 = """select d.id, d.word, d.translation from user_dictionary ud 
+    sql_1 = """select d.id, d.word from user_dictionary ud 
                 left join dictionary d on ud.word_id = d.id 
                 where ud.status = 'to_learn' and ud.user_id = %s and d.stopwords = 0;"""
 
-    sql_2 = """SELECT d.id, d.word, d.translation FROM dictionary d
+    sql_2 = """SELECT d.id, d.word FROM dictionary d
             LEFT JOIN (select word_id from user_dictionary where user_id = %s) ud
             ON d.id = ud.word_id
             WHERE ud.word_id IS NULL and d.translation is not NULL and stopwords = 0;"""
@@ -125,16 +147,27 @@ def get_new_words_from_dictionary(user_id):
     try:
         cur = conn.cursor()
         cur.execute(sql_1, (user_id,))
-        ids_words = cur.fetchall()
-        if ids_words:
+        ids_words_db = cur.fetchall()
+        if ids_words_db:
+            ids_words = []
+            for i in ids_words_db:
+                x = {"id": "", "word": ""}
+                x.update(dict(zip(x, i)))
+                ids_words.append(x)
             return ids_words
-        elif not ids_words:
+        elif not ids_words_db:
             cur = conn.cursor()
             cur.execute(sql_2, (user_id,))
-            ids_words = cur.fetchall()
+            ids_words_db = cur.fetchall()
             cur.close()
             conn.close()
+            ids_words = []
+            for i in ids_words_db:
+                x = {"id": "", "word": ""}
+                x.update(dict(zip(x, i)))
+                ids_words.append(x)
             return ids_words
+
     except (Exception, psycopg2.DatabaseError) as error:
         print(error)
     finally:
@@ -163,8 +196,9 @@ def get_words_from_dictionary():
 
 
 def get_repetition(user_id, lang='en'):
-    lang_db = {"en": "meaning", "ru": "translation"}
-    sql = """SELECT t.word_id, t.word, t.{0}  from (
+    lang_db = {"ru": "meaning, translation", "en": "meaning", "es": "meaning, translation_es",
+               "ar": "meaning, translation_ar"}
+    sql = """SELECT t.word_id, t.word, {0}  from (
                 SELECT *, now() - updated_at as timediff from user_dictionary as ud 
                 LEFT JOIN dictionary as d ON ud.word_id = d.id) as t
                 where (t.repetition = 0 or
@@ -187,9 +221,14 @@ def get_repetition(user_id, lang='en'):
     try:
         cur = conn.cursor()
         cur.execute(sql,(user_id,))
-        repetition = cur.fetchall()
+        repetition_db = cur.fetchall()
         cur.close()  # close communication with the database
         conn.close()
+        repetition = []
+        for i in repetition_db:
+            x = {"id": "", "word": "", "meaning": "", "translation": ""}
+            x.update(dict(zip(x, i)))
+            repetition.append(x)
         return repetition
     except (Exception, psycopg2.DatabaseError) as error:
         print(error)
@@ -270,7 +309,8 @@ def count_notification(user_id):
 
 
 def get_descr_from_dict(word_id, user_lang):
-    lang_db = {"ru": "meaning, translation", "en": "meaning"}
+    lang_db = {"ru": "meaning, translation", "en": "meaning", "es": "meaning, translation_es",
+               "ar": "meaning, translation_ar"}
     sql = """SELECT word, part_of_speach, example, {0} 
                 FROM dictionary where id = %s;""".format(lang_db[user_lang])
     conn = psycopg2.connect(

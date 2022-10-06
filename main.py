@@ -22,7 +22,7 @@ class MyStates(StatesGroup):
     waiting_for_word = State()
     adding_user_word_desc = State()
     user_answer_dialog_add_word = State()
-    id_lrn_tr = State()
+    picked_word = State()
     sorted_words_count = State()
     level_down_once = State()
     word_id = State()
@@ -47,8 +47,15 @@ def delete_file(message):
 
 
 def scrap_word(word):
-    url = "https://dictionary.cambridge.org/us/dictionary/english-russian/{0}".format(word)
-    url = url.rstrip()
+    url_ru = "https://dictionary.cambridge.org/us/dictionary/english-russian/{0}".format(word)
+    url_ar = "https://dictionary.cambridge.org/us/dictionary/english-arabic/{0}".format(word)
+    url_es = "https://dictionary.cambridge.org/us/dictionary/english-spanish/{0}".format(word)
+
+    urls = {url_es, url_ar}
+    word_dscr = {"word": word, "part_of_speach": "", "example": "", "meaning": "", "translation": "",
+                 "translation_es": "", "translation_ar": ""}
+
+    url = url_ru.rstrip()
     headers = requests.utils.default_headers()
 
     headers.update({'User-Agent': 'My User Agent 1.0', })
@@ -57,12 +64,10 @@ def scrap_word(word):
     soup = BeautifulSoup(response.content, "html.parser")
     block = soup.find("div", class_="def-block ddef_block")
 
-    word_dscr = {"word": word, "part_of_speach": "", "example": "", "meaning": "", "translation": ""}
-
     try:
         ps_tgs = soup.find("span", class_="pos dpos")
         prt_of_speach = ps_tgs.get_text(strip=True)
-        word_dscr["prt_of_speach"] = prt_of_speach
+        word_dscr["part_of_speach"] = prt_of_speach
 
         tr_tgs = block.find("span", class_="trans dtrans dtrans-se")
         translation = tr_tgs.text.strip()
@@ -80,9 +85,30 @@ def scrap_word(word):
         for each in examp_tgs:
             examp_lst.append(each.text.strip())
         examp = "\n".join(examp_lst)
-        word_dscr["examp"] = examp
+        word_dscr["example"] = examp
     except:
         return None
+
+    for url in urls:
+        url = url.rstrip()
+        headers = requests.utils.default_headers()
+
+        headers.update({'User-Agent': 'My User Agent 1.0', })
+
+        response = requests.get(url, headers=headers)
+        soup = BeautifulSoup(response.content, "html.parser")
+        block = soup.find("div", class_="def-block ddef_block")
+
+        try:
+
+            tr_tgs = block.find("span", class_="trans dtrans dtrans-se")
+            translation = tr_tgs.text.strip()
+            if url == url_es:
+                word_dscr["translation_es"] = translation
+            elif url == url_ar:
+                word_dscr["translation_ar"] = translation
+        except:
+            return None
     return word_dscr
 
 
@@ -96,16 +122,16 @@ def create_user(message):
     db.db_insert_user(tg_id, chat_id, first_name, last_name, language_code, user_name)
 
 
-def pickup_answers_on_buttons(id_lrn_tr):
+def pickup_answers_on_buttons(word_set):
     words = []
     words_from_dictionary = db.get_words_from_dictionary()
     for x in words_from_dictionary:
-        if x[0] == id_lrn_tr[0]:
+        if x[0] == word_set["id"]:
             continue
         else:
             words.append(x[1])
     answers = random.sample(list(words), 3)
-    answers.append(id_lrn_tr[1])
+    answers.append(word_set["word"])
     random.shuffle(answers)
     markup = types.ReplyKeyboardMarkup(row_width=2)
     answer_1 = types.KeyboardButton(answers[0])
@@ -129,19 +155,6 @@ def save_word(user_id, word_id, status, user_word_description=None):
     db.upsert_word_user_dict(user_id, word_id, status, user_word_description)
 
 
-def pickup_word(repetition):
-    word_ids = []
-    for x in repetition:
-        word_ids.append(x[0])
-    word_id = random.choice(word_ids)
-    for x in repetition:
-        if x[0] == word_id:
-            word_lrn = x[1]
-            word_tr = x[2]
-            break
-    return word_id, word_lrn, word_tr
-
-
 def format_string(full_description):
     examp_list = full_description["example"].split("\n")
     examp_list2 = []
@@ -160,9 +173,12 @@ def show_word_description(message, word_id=None, scraped_desc=None):
         full_description = scraped_desc
     user_word_description = db.get_user_descr(word_id)
     markup = types.InlineKeyboardMarkup()
+    url = {'ru': 'https://dictionary.cambridge.org/dictionary/english-russian/{0}',
+           'es': 'https://dictionary.cambridge.org/dictionary/english-spanish/{0}',
+           'ar': 'https://dictionary.cambridge.org/dictionary/english-arabic/{0}',
+           'en': 'https://dictionary.cambridge.org/dictionary/english/{0}'}
     markup.add(types.InlineKeyboardButton("Check Cambridge definition",
-                                          url='https://dictionary.cambridge.org/dictionary/english-russian/{0}'.format(
-                                              full_description["word"])))
+                                          url[user_lang].format(full_description["word"])))
     # надо проверять доступно ли слово по этому адресу и скрывать кнопку если нет
     examp = format_string(full_description)
     bot.send_message(message.chat.id,
@@ -256,15 +272,15 @@ def show_word(message):
     bot.send_chat_action(message.chat.id, 'typing')  # show the bot "typing" (max. 5 secs)
     user_id = db.get_user_id(message.from_user.id)
     new_words = db.get_new_words_from_dictionary(user_id)
-    id_lrn_tr = pickup_word(new_words)
+    picked_word = random.choice(new_words)
     markup = types.ReplyKeyboardMarkup(row_width=2)
     answer_1 = types.KeyboardButton('Already know')
     answer_2 = types.KeyboardButton('Learn')
     answer_3 = types.KeyboardButton('Show translation')
     markup.add(answer_1, answer_2, answer_3)
     with bot.retrieve_data(message.from_user.id, message.chat.id) as data:
-        data['id_lrn_tr'] = id_lrn_tr
-    bot.send_message(message.chat.id, id_lrn_tr[1], disable_notification=True, reply_markup=markup)
+        data['picked_word'] = picked_word
+    bot.send_message(message.chat.id, picked_word["word"], disable_notification=True, reply_markup=markup)
 
 
 @bot.message_handler(state=MyStates.sort_words)
@@ -274,7 +290,7 @@ def sort_word(message):
     with bot.retrieve_data(message.from_user.id, message.chat.id) as rt_data:
         data = rt_data
     if answer == 'Learn' and data['sorted_words_count'] > 1:
-        save_word(user_id, data['id_lrn_tr'][0], 'repetition')
+        save_word(user_id, data['picked_word']["id"], 'repetition')
         markup = types.ReplyKeyboardMarkup(row_width=2)
         answer_1 = types.KeyboardButton('Sure!')
         answer_2 = types.KeyboardButton('Later')
@@ -283,11 +299,11 @@ def sort_word(message):
         bot.send_message(message.chat.id, 'You have 3 new words to learn. Wanna start?', disable_notification=True,
                          reply_markup=markup)
     elif answer == 'Already know':
-        save_word(user_id, data['id_lrn_tr'][0], 'already_know')
+        save_word(user_id, data['picked_word']["id"], 'already_know')
         bot.send_message(message.chat.id, 'Lucky you! Here is another word:', disable_notification=True, )
         show_word(message)
     elif answer == 'Learn':
-        save_word(user_id, data['id_lrn_tr'][0], 'repetition')
+        save_word(user_id, data['picked_word']["id"], 'repetition')
         with bot.retrieve_data(message.from_user.id, message.chat.id) as data:
             data['sorted_words_count'] += 1
         bot.send_message(message.chat.id, "Ok, let's learn then! Here is another word:", disable_notification=True, )
@@ -298,7 +314,7 @@ def sort_word(message):
         answer_1 = types.KeyboardButton('Already know')
         answer_2 = types.KeyboardButton('Learn')
         markup.add(answer_1, answer_2)
-        show_word_description(message, word_id=data['id_lrn_tr'][0])
+        show_word_description(message, word_id=data['picked_word']["id"])
         bot.send_message(message.chat.id, "So, do you know it?", disable_notification=True, reply_markup=markup)
 
 
@@ -310,13 +326,15 @@ def repeat_word(message):
     repetition = db.get_repetition(user_id, user_lang)
     if len(repetition) > 0:
         bot.send_message(message.chat.id, "Do you remember:", disable_notification=True, )
-        id_lrn_tr = pickup_word(repetition)
-        markup = pickup_answers_on_buttons(id_lrn_tr)
+        picked_word = random.choice(repetition)
+        markup = pickup_answers_on_buttons(picked_word)
         bot.set_state(message.from_user.id, MyStates.repetition, message.chat.id)
         with bot.retrieve_data(message.from_user.id, message.chat.id) as data:
             data['level_down_once'] = 0
-            data['id_lrn_tr'] = id_lrn_tr
-        bot.send_message(message.chat.id, id_lrn_tr[2], disable_notification=True, reply_markup=markup)
+            data['picked_word'] = picked_word
+        bot.send_message(message.chat.id, "{translation}{meaning}".format(
+            translation=picked_word["translation"] + " *//* " if picked_word["translation"] != "" else "",
+            meaning=picked_word["meaning"]), disable_notification=True, reply_markup=markup, parse_mode='markdown')
     elif len(repetition) == 0:
         markup = base_buttons()
         bot.delete_state(message.from_user.id, message.chat.id)
@@ -335,26 +353,26 @@ def check_answer(message):
     user_id = db.get_user_id(message.from_user.id)
     with bot.retrieve_data(message.from_user.id, message.chat.id) as rt_data:
         data = rt_data
-    if answer == data['id_lrn_tr'][1]:
+    if answer == data['picked_word']["word"]:
         if data['level_down_once'] == 1:
             with bot.retrieve_data(message.from_user.id, message.chat.id) as rt_data:
                 rt_data['level_down_once'] = 0
             bot.send_message(message.chat.id, 'Correct!', disable_notification=True)
             bot.send_chat_action(message.chat.id, 'typing')
-            show_word_description(message, word_id=data['id_lrn_tr'][0])
+            show_word_description(message, word_id=data['picked_word']["id"])
             repeat_word(message)
         else:
             bot.send_chat_action(message.chat.id, 'typing')
-            db.count_repetition(data['id_lrn_tr'][0], user_id, "+1")
+            db.count_repetition(data['picked_word']["id"], user_id, "+1")
             with bot.retrieve_data(message.from_user.id, message.chat.id) as rt_data:
                 rt_data['level_down_once'] = 0
             bot.send_message(message.chat.id, 'Correct!', disable_notification=True)
             bot.send_chat_action(message.chat.id, 'typing')
-            show_word_description(message, word_id=data['id_lrn_tr'][0])
+            show_word_description(message, word_id=data['picked_word']["id"])
             repeat_word(message)
     else:
         if data['level_down_once'] == 0:
-            db.count_repetition(data['id_lrn_tr'][0], user_id, "-1")
+            db.count_repetition(data['picked_word']["id"], user_id, "-1")
             with bot.retrieve_data(message.from_user.id, message.chat.id) as rt_data:
                 rt_data['level_down_once'] = 1
         bot.send_message(message.chat.id, 'Try again', disable_notification=True, )
