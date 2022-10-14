@@ -10,6 +10,7 @@ import db
 import config
 from bs4 import BeautifulSoup
 import requests
+import time
 
 state_storage = StateMemoryStorage()
 bot = telebot.TeleBot(config.token, state_storage=state_storage, parse_mode=None, num_threads=3)
@@ -214,8 +215,22 @@ def start(message):
         markup = types.ReplyKeyboardMarkup(resize_keyboard=True, row_width=1)
         answer_1 = types.KeyboardButton('Learn new words')
         markup.add(answer_1)
-        bot.send_message(message.chat.id, "Hi! I'm Steve!", disable_notification=True, )
+        bot.send_message(message.chat.id, "Hi! I'm Steve!", disable_notification=True)
         photo = open('Pictures/1.jpg', 'rb')
+        bot.send_photo(message.from_user.id, photo, disable_notification=True)
+        time.sleep(1)
+        bot.send_message(message.chat.id, "I'll help you to improve your english vocabulary."
+                         , disable_notification=True)
+        bot.send_message(message.chat.id, "I have about 5000 most popular english words to learn. "
+                                          "Also you can add any word you wish to learning list or even drop me a file"
+                                          " with words and I will pick up them all and add to your learning list."
+                         , disable_notification=True)
+        time.sleep(3)
+        bot.send_message(message.chat.id, "It's important to repeat words regularly. This is why I believe messenger is"
+                                          "the best place for such repetitions because every time you open it you can"
+                                          "repeat a few words.🙂 And to do so don't forget to pin our chat."
+                         , disable_notification=True)
+        photo = open('Pictures/tg-pin-scrn.jpg', 'rb')
         bot.send_photo(message.from_user.id, photo, disable_notification=True, )
         bot.send_message(message.chat.id, "Wanna learn some words?", disable_notification=True, reply_markup=markup)
     else:
