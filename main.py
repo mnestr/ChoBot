@@ -284,9 +284,15 @@ def main_dialog(message):
         bot.send_message(message.chat.id, 'Hey, whats up?', disable_notification=True, reply_markup=markup)
 
 
-def show_word(message):
-    bot.send_chat_action(message.chat.id, 'typing')  # show the bot "typing" (max. 5 secs)
-    user_id = db.get_user_id(message.from_user.id)
+def show_word(message=None, user_id=None, chat_id=None):
+    if user_id and chat_id is not None:
+        bot.set_state(user_id, MyStates.sort_words, chat_id)
+        with bot.retrieve_data(message.from_user.id, message.chat.id) as data:
+            data['sorted_words_count'] = 0
+    elif message is not None:
+        bot.send_chat_action(message.chat.id, 'typing')  # show the bot "typing" (max. 5 secs)
+        user_id = db.get_user_id(message.from_user.id)
+        chat_id = message.chat.id
     new_words = db.get_new_words_from_dictionary(user_id)
     picked_word = random.choice(new_words)
     markup = types.ReplyKeyboardMarkup(row_width=2)
@@ -294,7 +300,7 @@ def show_word(message):
     answer_2 = types.KeyboardButton('Learn')
     answer_3 = types.KeyboardButton('Show translation')
     markup.add(answer_1, answer_2, answer_3)
-    with bot.retrieve_data(message.from_user.id, message.chat.id) as data:
+    with bot.retrieve_data(message.from_user.id, chat_id) as data:
         data['picked_word'] = picked_word
     bot.send_message(message.chat.id, picked_word["word"], disable_notification=True, reply_markup=markup)
 

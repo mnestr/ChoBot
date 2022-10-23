@@ -238,7 +238,8 @@ def get_repetition(user_id, lang='en'):
 
 
 def get_notify_list():
-    sql = """SELECT tt.user_id, tt.chat_id, tt.words_count, tt.notifications_count, tt.last_notification_at, MAX(uud.updated_at)
+    sql = """SELECT tt.user_id, tt.chat_id, tt.words_count, tt.notifications_count, tt.last_notification_at, 
+    MAX(uud.updated_at)
                 FROM (                
                 SELECT t.user_id, t.chat_id, count(t.word_id) as words_count, t.notifications_count, 
                 t.last_notification_at  from (
