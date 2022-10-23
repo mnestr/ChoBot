@@ -9,7 +9,6 @@ if __name__ == "__main__":
     notify_list = db.get_notify_list()
     for item in notify_list:
         if not item[4]:
-            markup = base_buttons()
             bot.send_message(item[1], "Hey, do you know this word?",
                              disable_notification=False, reply_markup=markup)
             show_word(user_id=item[0], chat_id=item[1])

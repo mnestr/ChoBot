@@ -35,10 +35,11 @@ class MyStates(StatesGroup):
 
 
 def download_file(message):
+    user_id = db.get_user_id(message.from_user.id)
     file_info = bot.get_file(message.document.file_id)
     file = requests.get('https://api.telegram.org/file/bot{0}/{1}'.format(config.token, file_info.file_path))
     open(message.document.file_unique_id, "wb").write(file.content)
-    with bot.retrieve_data(message.from_user.id, message.chat.id) as rt_data:
+    with bot.retrieve_data(user_id, message.chat.id) as rt_data:
         rt_data['subtitles_id'] = message.document.file_unique_id
 
 
@@ -247,7 +248,7 @@ def start(message):
             answer_1 = types.KeyboardButton('Repeat')
             answer_2 = types.KeyboardButton('Later')
             markup.add(answer_1, answer_2)
-            bot.set_state(message.from_user.id, MyStates.before_repeat_word, message.chat.id)
+            bot.set_state(user_id, MyStates.before_repeat_word, message.chat.id)
             bot.send_message(message.chat.id, "You have {0} words to repeat. Let's repeat?".format(len(repetition)),
                              disable_notification=True, reply_markup=markup)
 
@@ -255,16 +256,15 @@ def start(message):
 @bot.message_handler(commands=['home'])
 @bot.message_handler(text=['Sure!', 'Learn new words', 'Anything to repeat?', 'Later'])
 def main_dialog(message):
+    bot.send_chat_action(message.chat.id, 'typing')
+    user_id = db.get_user_id(message.from_user.id)
     if message.text == 'Learn new words':
-        bot.send_chat_action(message.chat.id, 'typing')
         bot.send_message(message.chat.id, "Ok. Do you know this one?", disable_notification=True, )
-        bot.set_state(message.from_user.id, MyStates.sort_words, message.chat.id)
-        with bot.retrieve_data(message.from_user.id, message.chat.id) as data:
+        bot.set_state(user_id, MyStates.sort_words, message.chat.id)
+        with bot.retrieve_data(user_id, message.chat.id) as data:
             data['sorted_words_count'] = 0
         show_word(message)
     elif message.text in ('Anything to repeat?', 'Sure!'):
-        bot.send_chat_action(message.chat.id, 'typing')
-        user_id = db.get_user_id(message.from_user.id)
         repetition = db.get_repetition(user_id)
         if len(repetition) > 0:
             markup = types.ReplyKeyboardMarkup(row_width=2)
@@ -279,7 +279,7 @@ def main_dialog(message):
         markup = base_buttons()
         bot.send_message(message.chat.id, 'As you wish=/', disable_notification=True, reply_markup=markup)
     elif message.text == '/home':
-        bot.delete_state(message.from_user.id, message.chat.id)
+        bot.delete_state(user_id, message.chat.id)
         markup = base_buttons()
         bot.send_message(message.chat.id, 'Hey, whats up?', disable_notification=True, reply_markup=markup)
 
@@ -287,10 +287,10 @@ def main_dialog(message):
 def show_word(message=None, user_id=None, chat_id=None):
     if user_id and chat_id is not None:
         bot.set_state(user_id, MyStates.sort_words, chat_id)
-        with bot.retrieve_data(message.from_user.id, message.chat.id) as data:
+        with bot.retrieve_data(user_id, chat_id) as data:
             data['sorted_words_count'] = 0
     elif message is not None:
-        bot.send_chat_action(message.chat.id, 'typing')  # show the bot "typing" (max. 5 secs)
+        bot.send_chat_action(message.chat.id, 'typing')
         user_id = db.get_user_id(message.from_user.id)
         chat_id = message.chat.id
     new_words = db.get_new_words_from_dictionary(user_id)
@@ -300,16 +300,16 @@ def show_word(message=None, user_id=None, chat_id=None):
     answer_2 = types.KeyboardButton('Learn')
     answer_3 = types.KeyboardButton('Show translation')
     markup.add(answer_1, answer_2, answer_3)
-    with bot.retrieve_data(message.from_user.id, chat_id) as data:
+    with bot.retrieve_data(user_id, chat_id) as data:
         data['picked_word'] = picked_word
-    bot.send_message(message.chat.id, picked_word["word"], disable_notification=True, reply_markup=markup)
+    bot.send_message(chat_id, picked_word["word"], disable_notification=True, reply_markup=markup)
 
 
 @bot.message_handler(state=MyStates.sort_words)
 def sort_word(message):
     answer = message.text
     user_id = db.get_user_id(message.from_user.id)
-    with bot.retrieve_data(message.from_user.id, message.chat.id) as rt_data:
+    with bot.retrieve_data(user_id, message.chat.id) as rt_data:
         data = rt_data
     if answer == 'Learn' and data['sorted_words_count'] > 1:
         save_word(user_id, data['picked_word']["id"], 'repetition')
@@ -317,7 +317,7 @@ def sort_word(message):
         answer_1 = types.KeyboardButton('Sure!')
         answer_2 = types.KeyboardButton('Later')
         markup.add(answer_1, answer_2)
-        bot.delete_state(message.from_user.id, message.chat.id)
+        bot.delete_state(user_id, message.chat.id)
         bot.send_message(message.chat.id, 'You have 3 new words to learn. Wanna start?', disable_notification=True,
                          reply_markup=markup)
     elif answer == 'Already know':
@@ -326,7 +326,7 @@ def sort_word(message):
         show_word(message)
     elif answer == 'Learn':
         save_word(user_id, data['picked_word']["id"], 'repetition')
-        with bot.retrieve_data(message.from_user.id, message.chat.id) as data:
+        with bot.retrieve_data(user_id, message.chat.id) as data:
             data['sorted_words_count'] += 1
         bot.send_message(message.chat.id, "Ok, let's learn then! Here is another word:", disable_notification=True, )
         show_word(message)
@@ -350,8 +350,8 @@ def repeat_word(message):
         bot.send_message(message.chat.id, "Do you remember:", disable_notification=True, )
         picked_word = random.choice(repetition)
         markup = pickup_answers_on_buttons(picked_word)
-        bot.set_state(message.from_user.id, MyStates.repetition, message.chat.id)
-        with bot.retrieve_data(message.from_user.id, message.chat.id) as data:
+        bot.set_state(user_id, MyStates.repetition, message.chat.id)
+        with bot.retrieve_data(user_id, message.chat.id) as data:
             data['level_down_once'] = 0
             data['picked_word'] = picked_word
         bot.send_message(message.chat.id, "{translation}{meaning}".format(
@@ -359,7 +359,7 @@ def repeat_word(message):
             meaning=picked_word["meaning"]), disable_notification=True, reply_markup=markup, parse_mode='markdown')
     elif len(repetition) == 0:
         markup = base_buttons()
-        bot.delete_state(message.from_user.id, message.chat.id)
+        bot.delete_state(user_id, message.chat.id)
         statistics = db.get_statistics(user_id)
         bot.send_message(message.chat.id, "You've repeated all words. Try to memorize them and Come back later to "
                                           "repeat.\n\nHere is your short statistics:\n"
@@ -373,11 +373,11 @@ def repeat_word(message):
 def check_answer(message):
     answer = message.text
     user_id = db.get_user_id(message.from_user.id)
-    with bot.retrieve_data(message.from_user.id, message.chat.id) as rt_data:
+    with bot.retrieve_data(user_id, message.chat.id) as rt_data:
         data = rt_data
     if answer == data['picked_word']["word"]:
         if data['level_down_once'] == 1:
-            with bot.retrieve_data(message.from_user.id, message.chat.id) as rt_data:
+            with bot.retrieve_data(user_id, message.chat.id) as rt_data:
                 rt_data['level_down_once'] = 0
             bot.send_message(message.chat.id, 'Correct!', disable_notification=True)
             bot.send_chat_action(message.chat.id, 'typing')
@@ -386,7 +386,7 @@ def check_answer(message):
         else:
             bot.send_chat_action(message.chat.id, 'typing')
             db.count_repetition(data['picked_word']["id"], user_id, "+1")
-            with bot.retrieve_data(message.from_user.id, message.chat.id) as rt_data:
+            with bot.retrieve_data(user_id, message.chat.id) as rt_data:
                 rt_data['level_down_once'] = 0
             bot.send_message(message.chat.id, 'Correct!', disable_notification=True)
             bot.send_chat_action(message.chat.id, 'typing')
@@ -395,14 +395,15 @@ def check_answer(message):
     else:
         if data['level_down_once'] == 0:
             db.count_repetition(data['picked_word']["id"], user_id, "-1")
-            with bot.retrieve_data(message.from_user.id, message.chat.id) as rt_data:
+            with bot.retrieve_data(user_id, message.chat.id) as rt_data:
                 rt_data['level_down_once'] = 1
         bot.send_message(message.chat.id, 'Try again', disable_notification=True, )
 
 
 @bot.message_handler(text=['добавить слово', 'add word', 'Add word'])
 def start_dialog_add_word(message):
-    bot.set_state(message.from_user.id, MyStates.waiting_for_word, message.chat.id)
+    user_id = db.get_user_id(message.from_user.id)
+    bot.set_state(user_id, MyStates.waiting_for_word, message.chat.id)
     bot.send_message(message.chat.id, 'Write english word that you want to learn. Or you can drop me your file'
                                       ' with text, subtitles for instance and I will add all words from the file '
                                       'to your learning list. Keep in mind I can work only with'
@@ -412,12 +413,12 @@ def start_dialog_add_word(message):
 
 @bot.message_handler(state=MyStates.waiting_for_word)
 def recieve_word(message):
+    user_id = db.get_user_id(message.from_user.id)
     if message.content_type == 'text':
         user_word = message.text.lower()
         # check_spelling()
         # check_english_word()
         word_id = db.find_word_in_dict(user_word)
-        user_id = db.get_user_id(message.from_user.id)
         if not word_id:
             bot.send_chat_action(message.chat.id, 'typing')
             scraped_desc = scrap_word(user_word)
@@ -425,12 +426,12 @@ def recieve_word(message):
                 db.insert_word(user_word, None, None, None, None, user_id)
                 bot.send_message(message.chat.id, "Can't find any description. Please add your own:",
                                  disable_notification=True, )
-                bot.set_state(message.from_user.id, MyStates.adding_user_word_desc, message.chat.id)
+                bot.set_state(user_id, MyStates.adding_user_word_desc, message.chat.id)
             elif scraped_desc:
                 word_id = db.insert_word(scraped_desc["word"], scraped_desc["translation"],
                                          scraped_desc["prt_of_speach"], scraped_desc["meaning"],
                                          scraped_desc["examp"], user_id)
-                with bot.retrieve_data(message.from_user.id, message.chat.id) as data:
+                with bot.retrieve_data(user_id, message.chat.id) as data:
                     data['word_id'] = word_id
                 show_word_description(message, word_id=word_id, scraped_desc=scraped_desc)
                 markup = types.ReplyKeyboardMarkup(row_width=2)
@@ -438,17 +439,17 @@ def recieve_word(message):
                 answer_2 = types.KeyboardButton('Nope')
                 answer_3 = types.KeyboardButton('Add another description')
                 markup.add(answer_1, answer_2, answer_3)
-                bot.set_state(message.from_user.id, MyStates.user_answer_dialog_add_word, message.chat.id)
+                bot.set_state(user_id, MyStates.user_answer_dialog_add_word, message.chat.id)
                 bot.send_message(message.chat.id, "I have such description of the word. "
                                                   "Do you want to add it to your learning list?",
                                  disable_notification=True, reply_markup=markup)
         elif word_id:
             bot.send_chat_action(message.chat.id, 'typing')
             show_word_description(message, word_id=word_id, scraped_desc=scraped_desc)
-            with bot.retrieve_data(message.from_user.id, message.chat.id) as data:
+            with bot.retrieve_data(user_id, message.chat.id) as data:
                 data['word_id'] = word_id
             markup = base_buttons()
-            bot.set_state(message.from_user.id, MyStates.user_answer_dialog_add_word, message.chat.id)
+            bot.set_state(user_id, MyStates.user_answer_dialog_add_word, message.chat.id)
             bot.send_message(message.chat.id, "I've found it! Do you want to add it to your learning list?",
                              disable_notification=True, reply_markup=markup)
     elif message.content_type == 'document' and message.document.file_name[-4:] in ['.srt', '.txt']:
@@ -458,7 +459,7 @@ def recieve_word(message):
         download_file(message)
         raw_text = se.read_file(message.document.file_unique_id)
         delete_file(message)
-        bot.delete_state(message.from_user.id, message.chat.id)
+        bot.delete_state(user_id, message.chat.id)
         text = se.clean_text(raw_text)
         lem_words = se.lemmatize_words(text)
         cleaned_words = se.clean(lem_words)
@@ -481,37 +482,38 @@ def recieve_word(message):
 @bot.message_handler(state=MyStates.user_answer_dialog_add_word)
 def user_answer_dialog_add_word(message):
     answer = message.text
+    user_id = db.get_user_id(message.from_user.id)
     if answer == 'Yes, please':
-        user_id = db.get_user_id(message.from_user.id)
-        with bot.retrieve_data(message.from_user.id, message.chat.id) as data:
+        with bot.retrieve_data(user_id, message.chat.id) as data:
             word_id = data['word_id']
         save_word(user_id, word_id, 'repetition')
         markup = base_buttons()
-        bot.delete_state(message.from_user.id, message.chat.id)
+        bot.delete_state(user_id, message.chat.id)
         bot.send_message(message.chat.id, "Saved it! What's next?", disable_notification=True, reply_markup=markup)
     elif answer == 'Add another description':
         bot.send_message(message.chat.id, 'Write word description:', disable_notification=True)
-        bot.set_state(message.from_user.id, MyStates.adding_user_word_desc, message.chat.id)
+        bot.set_state(user_id, MyStates.adding_user_word_desc, message.chat.id)
     elif answer in ('Nope', 'no'):
         markup = base_buttons()
-        bot.delete_state(message.from_user.id, message.chat.id)
+        bot.delete_state(user_id, message.chat.id)
         bot.send_message(message.chat.id, "Ok, what's next?", disable_notification=True, reply_markup=markup)
 
 
 @bot.message_handler(state=MyStates.adding_user_word_desc)
 def add_user_word_desc(message):
     user_id = db.get_user_id(message.from_user.id)
-    with bot.retrieve_data(message.from_user.id, message.chat.id) as data:
+    with bot.retrieve_data(user_id, message.chat.id) as data:
         word_id = data['word_id']
     save_word(user_id, word_id, 'repetition', user_word_description=message.text)
     markup = base_buttons()
-    bot.delete_state(message.from_user.id, message.chat.id)
+    bot.delete_state(user_id, message.chat.id)
     bot.send_message(message.chat.id, "Saved it! What's next?", disable_notification=True, reply_markup=markup)
 
 
 @bot.message_handler(text=['Suggest an idea or leave feedback'])
 def feedback_dialog(message):
-    bot.set_state(message.from_user.id, MyStates.waiting_feedback, message.chat.id)
+    user_id = db.get_user_id(message.from_user.id)
+    bot.set_state(user_id, MyStates.waiting_feedback, message.chat.id)
     bot.send_message(message.chat.id, "Any feedback would be very helpful for me. Smth is not working or "
                                       "translation is bad or you want to add new feature, please, leave "
                                       "your feedback here:",
@@ -520,8 +522,9 @@ def feedback_dialog(message):
 
 @bot.message_handler(state=MyStates.waiting_feedback)
 def recieve_feedback(message):
+    user_id = db.get_user_id(message.from_user.id)
     bot.send_message(5341870331, message)
-    bot.delete_state(message.from_user.id, message.chat.id)
+    bot.delete_state(user_id, message.chat.id)
     markup = base_buttons()
     bot.send_message(message.chat.id, "Thank you so much! What's next?",
                      disable_notification=True, reply_markup=markup)
